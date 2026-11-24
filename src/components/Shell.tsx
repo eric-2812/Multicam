@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { recorder } from '../engine/recorder'
+import { recorder, whyCantRecord } from '../engine/recorder'
 import { masterTC, nowMs, runTC } from '../engine/timecode'
 import { video } from '../engine/video'
-import { store, useStore, type Page } from '../store'
+import { store, toast, useStore, type Page } from '../store'
 import { Icon } from './Icon'
 import { LivePage } from './LivePage'
 import { SetupPage } from './SetupPage'
@@ -47,12 +47,34 @@ function RecButton() {
   const onCard = useStore((s) => s.remotes.filter((r) => r.follow && r.status === 'connected').length)
   const fps = useStore((s) => s.fps)
   useTick(500)
-  const toggle = () => (since ? void recorder.stop() : void recorder.start())
+  const blocked = useStore((s) => (s.recordingSince ? null : whyCantRecord(s)))
+  const toggle = () => {
+    if (since) return void recorder.stop()
+    // Explain why, and take the operator to where cameras are connected.
+    if (blocked) {
+      toast(`${blocked}.`, 'bad')
+      if (!store.get().sources.length) store.set({ page: 'setup', setupSection: 'devices', addTab: 'usb' })
+      return
+    }
+    void recorder.start()
+  }
   return (
-    <button className={`rec ${since ? 'is-rec' : ''}`} onClick={toggle} aria-pressed={!!since} title={since ? 'Stop recording (R)' : 'Record every armed camera and mic (R)'}>
+    <button
+      className={`rec ${since ? 'is-rec' : ''} ${blocked ? 'is-blocked' : ''}`}
+      onClick={toggle}
+      aria-pressed={!!since}
+      aria-disabled={!!blocked}
+      title={since ? 'Stop recording (R)' : (blocked ?? 'Record every armed camera and mic (R)')}
+    >
       <span className="rec-dot" aria-hidden />
       <span className="rec-label">{since ? 'STOP' : 'REC'}</span>
-      <span className="rec-meta">{since ? `${runTC(nowMs() - since, fps)} · ${fmtBytes(recorder.totalBytes())}` : `${armed} cam${armed === 1 ? '' : 's'} armed${onCard ? ` · ${onCard} on card` : ''}`}</span>
+      <span className="rec-meta">
+        {since
+          ? `${runTC(nowMs() - since, fps)} · ${fmtBytes(recorder.totalBytes())}`
+          : blocked
+            ? 'No camera'
+            : `${armed} cam${armed === 1 ? '' : 's'} armed${onCard ? ` · ${onCard} on card` : ''}`}
+      </span>
     </button>
   )
 }

@@ -22,7 +22,8 @@ import { Icon, LinkBadge } from './Icon'
 import { Switch } from './ui'
 
 const TABS: { id: AddTab; label: string; icon: string }[] = [
-  { id: 'usb', label: 'USB & capture', icon: 'usb' },
+  { id: 'usb', label: 'Cameras (USB & capture)', icon: 'usb' },
+  { id: 'mic', label: 'Microphones', icon: 'mic' },
   { id: 'iphone', label: 'iPhone', icon: 'phone' },
   { id: 'gopro', label: 'GoPro', icon: 'cam' },
   { id: 'sony', label: 'Sony Alpha', icon: 'camera' },
@@ -59,12 +60,11 @@ function useDevices() {
 }
 
 function UsbTab() {
-  const { cams, mics, unlocked, refresh } = useDevices()
+  const { cams, unlocked, refresh } = useDevices()
   const [quality, setQuality] = useState<'720' | '1080' | '4k'>('1080')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const usedCams = useStore((s) => s.sources.map((x) => x.detail))
-  const usedMics = useStore((s) => s.channels.map((x) => x.detail))
 
   if (!mediaSupported()) return <p className="note bad">This browser cannot access cameras. Use a recent Chrome, Edge, Safari or Firefox over https.</p>
 
@@ -82,7 +82,7 @@ function UsbTab() {
 
   return (
     <div className="tab-body">
-      <p className="lead">Webcams, capture cards (HDMI/SDI → USB), USB microphones and audio interfaces, and anything your computer already sees as a camera or mic.</p>
+      <p className="lead">Webcams, capture cards (HDMI/SDI → USB) and anything your computer already sees as a camera.</p>
       {!unlocked && (
         <button className="btn btn-primary" onClick={() => run('unlock', async () => (await unlockDevices(), await refresh()))} disabled={busy === 'unlock'}>
           {busy === 'unlock' ? 'Waiting for permission…' : 'Allow camera & microphone access'}
@@ -121,6 +121,61 @@ function UsbTab() {
         {!cams.length && <li className="dev-empty">No cameras found. Plug one in — the list updates by itself.</li>}
       </ul>
 
+      <p className="hint">
+        Microphones are in the{' '}
+        <button className="linkbtn" onClick={() => store.set({ addTab: 'mic' })}>
+          Microphones
+        </button>{' '}
+        tab.
+      </p>
+    </div>
+  )
+}
+
+/** Every audio input the computer sees: each becomes a mixer channel and its own recorded file. */
+function MicTab() {
+  const { mics, unlocked, refresh } = useDevices()
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const usedMics = useStore((s) => s.channels.map((x) => x.detail))
+  if (!mediaSupported()) return <p className="note bad">This browser cannot access microphones. Use a recent Chrome, Edge, Safari or Firefox over https.</p>
+  const run = async (key: string, f: () => Promise<void>) => {
+    setBusy(key)
+    setError(null)
+    try {
+      await f()
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <div className="tab-body">
+      <p className="lead">Each microphone gets its own channel in the mixer and its own audio file in every take. Cameras don’t bring their sound by themselves — add their mic here if you want it.</p>
+      <ul className="steps">
+        <li>
+          <b>USB microphones and audio interfaces</b> (XLR mics through a Focusrite, Zoom, Rodecaster…): plug in and add them below.
+        </li>
+        <li>
+          <b>Wireless lavs</b> (RØDE Wireless GO, DJI Mic, Hollyland…): plug the receiver into the computer with USB-C; it shows up as a microphone.
+        </li>
+        <li>
+          <b>Camera audio</b>: a Sony in USB streaming mode or a capture card also appears here as a microphone.
+        </li>
+        <li>
+          <b>Bluetooth headsets and mics</b>: pair them in your computer’s Bluetooth settings first — see the Bluetooth tab.
+        </li>
+        <li>
+          <b>Phones</b> joined over Wi-Fi bring their microphone automatically.
+        </li>
+      </ul>
+      {!unlocked && (
+        <button className="btn btn-primary" onClick={() => run('unlock', async () => (await unlockDevices(), await refresh()))} disabled={busy === 'unlock'}>
+          {busy === 'unlock' ? 'Waiting for permission…' : 'Allow microphone access'}
+        </button>
+      )}
+      {error && <p className="note bad">{error}</p>}
       <h4>
         Microphones <span className="count">{mics.length}</span>
       </h4>
@@ -139,7 +194,7 @@ function UsbTab() {
             </li>
           )
         })}
-        {!mics.length && <li className="dev-empty">No microphones found.</li>}
+        {!mics.length && <li className="dev-empty">{unlocked ? 'No microphones found. Plug one in — the list updates by itself.' : 'Allow access to see your microphones.'}</li>}
       </ul>
     </div>
   )
@@ -662,6 +717,7 @@ export function DevicesSection() {
       </nav>
       <div className="tab-panel">
         {tab === 'usb' && <UsbTab />}
+        {tab === 'mic' && <MicTab />}
         {tab === 'iphone' && <IphoneTab />}
         {tab === 'gopro' && <GoProTab />}
         {tab === 'sony' && <SonyTab />}

@@ -192,17 +192,28 @@ export function Mixer() {
           Audio
         </button>
         <span className="mixer-note">
-          {channels.length} {channels.length === 1 ? 'mic' : 'mics'}
+          {channels.length ? `${channels.length} ${channels.length === 1 ? 'mic' : 'mics'}` : 'No microphones'}
           {recMics ? ` · each recorded to its own file${recording ? ' (recording)' : ''}` : ' · mix only'}
         </span>
       </header>
       {open && (
         <div className="mixer-body">
-          <div className="mixer-strips">
+          {!channels.length && (
+            <div className="mixer-empty">
+              <Icon name="mic" size={18} />
+              <p>
+                <b>No microphones yet.</b> Camera sound isn’t added on its own — add a USB mic, audio interface, wireless lav or Bluetooth headset. Each one records to its own file.
+              </p>
+              <button className="btn btn-sm btn-primary" onClick={() => store.set({ page: 'setup', setupSection: 'devices', addTab: 'mic' })}>
+                <Icon name="plus" size={13} /> Add microphone
+              </button>
+            </div>
+          )}
+          <div className="mixer-strips" hidden={!channels.length}>
             {channels.map((c) => (
               <Strip key={c.id} ch={c} />
             ))}
-            <button className="strip strip-add" onClick={() => store.set({ page: 'setup', setupSection: 'devices', addTab: 'usb' })}>
+            <button className="strip strip-add" onClick={() => store.set({ page: 'setup', setupSection: 'devices', addTab: 'mic' })}>
               <Icon name="plus" size={16} />
               Add mic
             </button>

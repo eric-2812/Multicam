@@ -106,7 +106,7 @@ function EmptyState() {
     <div className="empty">
       <Icon name="cam" size={28} />
       <h2>No cameras connected</h2>
-      <p>Add webcams, capture cards, phones over Wi-Fi or IP cameras. Every camera records to its own file for editing.</p>
+      <p>Add webcams, capture cards, phones, GoPros, Sony cameras or IP cameras, and your microphones. Every camera and mic records to its own file for editing.</p>
       <div className="row">
         <button className="btn btn-primary" onClick={() => store.set({ page: 'setup', setupSection: 'devices' })}>
           <Icon name="plus" size={14} /> Add devices

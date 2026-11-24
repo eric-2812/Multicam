@@ -1,4 +1,4 @@
-import { store, toast, type Take, type TakeFile } from '../store'
+import { store, toast, type State, type Take, type TakeFile } from '../store'
 import type { VideoSource } from '../types'
 import { audio } from './audio'
 import { recordRemotes } from './bluecams'
@@ -66,6 +66,19 @@ function pickMime(format: 'mp4' | 'webm', kind: 'av' | 'v' | 'a') {
   }
   const other = format === 'mp4' ? 'webm' : 'mp4'
   return [...opts[format][kind], ...opts[other][kind]].find((m) => MediaRecorder.isTypeSupported(m)) ?? ''
+}
+
+/**
+ * Why REC can't start right now, or null if it can. A take needs at least one camera: an armed,
+ * live source, or a GoPro / Sony paired over Bluetooth that records on its card.
+ */
+export function whyCantRecord(st: State): string | null {
+  const cams = st.sources.filter((s) => s.rec.armed && s.status === 'live').length
+  const onCard = st.remotes.filter((r) => r.follow && r.status === 'connected').length
+  if (cams || onCard) return null
+  if (!st.sources.length && !st.remotes.length) return 'Connect a camera to record'
+  if (st.sources.some((s) => s.status === 'live')) return 'Arm a camera to record (Setup → Recording)'
+  return 'No camera is live right now'
 }
 
 const extOf = (mime: string, audioOnly: boolean) => (mime.includes('mp4') ? (audioOnly ? 'm4a' : 'mp4') : 'webm')
@@ -137,6 +150,11 @@ class Recorder {
 
   async start() {
     if (this.take || this.busy) return
+    const blocked = whyCantRecord(store.get())
+    if (blocked) {
+      toast(`${blocked}.`, 'bad')
+      return
+    }
     this.busy = true
     const st = store.get()
     const cfg = st.rec
@@ -187,7 +205,7 @@ class Recorder {
         await this.addTrack(new MediaStream(tracks), `${base}_PGM_${tc}.${extOf(mime, false)}`, mime, 'program', bitrate)
       }
       const followers = st.remotes.filter((r) => r.follow && r.status === 'connected')
-      if (!this.tracks.length && !followers.length) throw new Error('Nothing to record — arm a camera, turn on microphone recording, or pair a GoPro / Sony.')
+      if (!this.tracks.length && !followers.length) throw new Error('Nothing to record — connect and arm a camera.')
 
       // Start everything back to back so all files share the same first frame.
       this.tracks.forEach((t) => t.rec.start(1000))

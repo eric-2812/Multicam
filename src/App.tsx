@@ -14,6 +14,12 @@ const SOURCES: { tab: AddTab; icon: string; title: string; how: string }[] = [
   { tab: 'url', icon: 'network', title: 'IP or PTZ camera', how: 'MJPEG, MP4 or HLS address' },
 ]
 
+/** Sound sources: every mic becomes its own channel and file. */
+const SOUND: { tab: AddTab; icon: string; title: string; how: string }[] = [
+  { tab: 'mic', icon: 'mic', title: 'Microphone or audio interface', how: 'USB mics, XLR through an interface, wireless lav receivers' },
+  { tab: 'bluetooth', icon: 'bluetooth', title: 'Bluetooth headset or mic', how: 'Pair it with the computer first, then add it' },
+]
+
 function Welcome() {
   const open = (tab: AddTab) => {
     audio.ensure()
@@ -33,13 +39,28 @@ function Welcome() {
         </div>
         <h1>Record every camera at once, in sync.</h1>
         <p className="welcome-lead">
-          Plug in or pair your cameras and mics, set each one up from here, and press record. Every camera and every mic writes its own file with the same start
+          Plug in or pair your cameras and microphones, set each one up from here, and press record. Every camera and every mic writes its own file with the same start
           timecode, ready for a multicam edit.
         </p>
         <h2 className="welcome-h">What are you connecting?</h2>
         <ul className="welcome-src">
           {SOURCES.map((s) => (
             <li key={s.tab}>
+              <button onClick={() => open(s.tab)}>
+                <Icon name={s.icon} size={18} />
+                <span>
+                  <b>{s.title}</b>
+                  <small>{s.how}</small>
+                </span>
+                <Icon name="chevron" size={14} className="welcome-go" />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <h2 className="welcome-h">And for sound?</h2>
+        <ul className="welcome-src">
+          {SOUND.map((s) => (
+            <li key={s.title}>
               <button onClick={() => open(s.tab)}>
                 <Icon name={s.icon} size={18} />
                 <span>

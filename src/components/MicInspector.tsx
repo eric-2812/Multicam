@@ -40,7 +40,7 @@ export function MicInspector() {
       <div className="insp-empty">
         <Icon name="mic" size={22} />
         <p>No microphones yet.</p>
-        <button className="btn btn-sm" onClick={() => store.set({ page: 'setup', setupSection: 'devices', addTab: 'usb' })}>
+        <button className="btn btn-sm" onClick={() => store.set({ page: 'setup', setupSection: 'devices', addTab: 'mic' })}>
           Add microphone
         </button>
       </div>

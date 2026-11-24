@@ -2094,8 +2094,8 @@ span.strip-name {
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
-  overflow-x: auto;
   border-bottom: 1px solid var(--line);
 }
 
@@ -3189,4 +3189,47 @@ span.strip-name {
   .tbl .hide-sm {
     display: none;
   }
+}
+
+/* REC with no camera: looks unavailable, still explains itself when pressed. */
+.rec.is-blocked {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--text-3);
+  cursor: not-allowed;
+}
+
+.rec.is-blocked .rec-dot {
+  background: var(--text-3);
+}
+
+.rec.is-blocked:hover {
+  border-color: var(--line-2);
+}
+
+.mixer-empty {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r);
+  color: var(--text-2);
+}
+
+.mixer-empty p {
+  flex: 1 1 260px;
+  margin: 0;
+}
+
+.mixer-empty b {
+  color: var(--text);
+}
+
+.steps b {
+  color: var(--text);
+  font-weight: 500;
 }

@@ -11,7 +11,7 @@ export interface LowerThird {
 export type Page = 'live' | 'setup' | 'takes'
 export type SetupSection = 'project' | 'devices' | 'recording' | 'sync' | 'audio' | 'shortcuts'
 export type View = 'grid' | 'focus' | 'switch'
-export type AddTab = 'usb' | 'iphone' | 'gopro' | 'sony' | 'phone' | 'url' | 'bluetooth' | 'screen'
+export type AddTab = 'usb' | 'mic' | 'iphone' | 'gopro' | 'sony' | 'phone' | 'url' | 'bluetooth' | 'screen'
 export type Guides = 'off' | 'thirds' | 'safe' | 'center' | 'scope'
 
 export interface Monitoring {
