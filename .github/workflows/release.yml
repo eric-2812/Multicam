@@ -1,0 +1,56 @@
+name: Release (Windows)
+
+# Push a tag like v0.1.0-beta to build the Windows app and publish it as a GitHub release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Build installer and portable .exe
+        run: npx electron-builder --win --publish never
+        env:
+          # No code-signing certificate yet: Windows will show "unknown publisher" on first run.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Tally beta 0.1
+          prerelease: true
+          files: |
+            release/Tally-Setup-*.exe
+            release/Tally-*-portable.exe
+          body: |
+            First beta of Tally for Windows.
+
+            **Download**
+            - `Tally-Setup-0.1.0-beta.exe` — installer (Start menu shortcut, uninstall from Settings).
+            - `Tally-0.1.0-beta-portable.exe` — single file, nothing to install.
+
+            Windows SmartScreen may say "Windows protected your PC" because the app isn't code-signed yet: click **More info → Run anyway**.
+
+            **What's in it**
+            - Record every camera and every mic to its own file, all starting on the same frame, plus the switched program, an EDL, markers and a take sheet.
+            - Webcams and capture cards, iPhone (Continuity Camera or Wi-Fi), GoPro (webcam mode / HDMI) and Sony Alpha (USB streaming / HDMI), IP cameras, screen share.
+            - GoPro (HERO9+) and Sony Alpha paired over Bluetooth record to their own cards with REC.
+            - Camera settings the hardware supports (focus, shutter, ISO, white balance, PTZ and more), per-mic trim, EQ, compressor and gate.
+            - Master timecode, lip-sync alignment, slate, focus view with zebras / peaking / histogram, live switcher.
+
+            Recordings without a chosen folder are saved to **Videos\Tally**.
+
+            **Known limits in this beta**
+            - Not tested yet with a real Sony a7 IV or GoPro over Bluetooth.
+            - Phones join through the web version (the QR code opens it), so the web app must be published on GitHub Pages.

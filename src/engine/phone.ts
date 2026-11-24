@@ -71,8 +71,14 @@ function newRoomId() {
   return `tally-${s}`
 }
 
+/**
+ * Where phones open the join page. In the browser that's this same site; the desktop app
+ * isn't reachable from a phone, so it points phones at the public web version instead.
+ */
+const PUBLIC_URL = import.meta.env.VITE_PUBLIC_URL || 'https://eric-2812.github.io/Multicam/'
+
 export function joinUrl(room: string) {
-  const u = new URL(location.href)
+  const u = new URL(/^https?:$/.test(location.protocol) ? location.href : PUBLIC_URL)
   u.search = ''
   u.hash = ''
   u.searchParams.set('join', room.replace(/^tally-/, ''))

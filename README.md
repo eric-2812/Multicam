@@ -90,12 +90,20 @@ Keyboard:
 | `F` | Fade to black |
 | `L` | Title |
 
+## Download (Windows)
+
+Get **Tally beta 0.1** from the [Releases page](https://github.com/eric-2812/Multicam/releases): the installer (`Tally-Setup-0.1.0-beta.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Tally**.
+
+To make a new release, bump `version` in `package.json` and push a tag like `v0.2.0-beta`; `.github/workflows/release.yml` builds the Windows app and publishes it.
+
 ## Run it
 
 ```bash
 npm install
 npm run dev      # http://localhost:5173 (also on your LAN, for phones)
 npm run build    # production build in dist/
+npm run app      # run the desktop app (Electron)
+npm run dist:win # build the Windows .exe files into release/ (on Windows)
 ```
 
 Pushing to `main` deploys to GitHub Pages (`.github/workflows/pages.yml` → `gh-pages`). Phones need https for the camera, so use the Pages URL for the Wi-Fi feature. To use your own PeerJS signalling server, open the app with `?signal=host:port`.
