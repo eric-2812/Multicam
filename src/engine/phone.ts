@@ -3,6 +3,7 @@ import { addChannel, addSource, store, toast, updateSource } from '../store'
 import type { HwCaps } from '../types'
 import { audio } from './audio'
 import { newChannel, newSource } from './devices'
+import { nowMs } from './timecode'
 import { video, type Tally } from './video'
 
 /**
@@ -22,9 +23,16 @@ function peerOptions(): PeerOptions {
   return opts
 }
 
-export type HostMsg = { type: 'tally'; tally: Tally } | { type: 'hw'; c: Record<string, unknown> } | { type: 'flip' }
+export type HostMsg =
+  | { type: 'tally'; tally: Tally }
+  | { type: 'hw'; c: Record<string, unknown> }
+  | { type: 'flip' }
+  | { type: 'pong'; t0: number; th: number }
+  | { type: 'slate' }
 export type PhoneMsg =
   | { type: 'hello'; name: string; caps: HwCaps; facing: string }
+  | { type: 'ping'; t0: number }
+  | { type: 'clock'; offset: number; rtt: number }
   | { type: 'battery'; level: number; charging: boolean }
   | { type: 'caps'; caps: HwCaps; facing: string }
 
@@ -89,6 +97,10 @@ export function openRoom() {
     // Lost the broker; existing calls keep flowing, but reconnect so new phones can join.
     setTimeout(() => !p.destroyed && p.reconnect(), 1500)
   })
+  // The slate flashes every phone screen too, so phones can act as a visible clapperboard.
+  window.addEventListener('tally-slate', () => {
+    for (const l of phones.values()) if (l.conn?.open) l.conn.send({ type: 'slate' } satisfies HostMsg)
+  })
   p.on('connection', (conn) => {
     const link = linkFor(conn.peer, (conn.metadata?.name as string) || 'Phone')
     link.conn = conn
@@ -143,7 +155,12 @@ function linkFor(peerId: string, name: string): PhoneLink {
 }
 
 function handlePhoneMsg(link: PhoneLink, msg: PhoneMsg) {
-  if (msg.type === 'hello' || msg.type === 'caps') {
+  if (msg.type === 'ping') {
+    // NTP-style: the phone works out its offset from our reply.
+    link.conn?.send({ type: 'pong', t0: msg.t0, th: nowMs() } satisfies HostMsg)
+  } else if (msg.type === 'clock') {
+    updateSource(link.sourceId, { clock: { offset: Math.round(msg.offset), rtt: Math.round(msg.rtt) } })
+  } else if (msg.type === 'hello' || msg.type === 'caps') {
     const patch: Parameters<typeof updateSource>[1] = { hw: msg.caps, detail: `Phone · ${msg.facing === 'user' ? 'front' : 'rear'} camera` }
     if (msg.type === 'hello') {
       patch.name = msg.name.slice(0, 24)
@@ -162,14 +179,33 @@ function watchStats(link: PhoneLink, call: MediaConnection) {
     const pc = call.peerConnection
     if (!pc) return
     const stats = await pc.getStats()
+    let rtt = 0
+    const jb: Record<string, number> = {}
     stats.forEach((r) => {
       if (r.type === 'candidate-pair' && r.nominated && r.currentRoundTripTime !== undefined) {
-        const rtt = r.currentRoundTripTime as number
+        rtt = r.currentRoundTripTime as number
         const signal = rtt < 0.03 ? 4 : rtt < 0.08 ? 3 : rtt < 0.2 ? 2 : 1
         const cur = store.get().sources.find((s) => s.id === link.sourceId)
         if (cur && cur.signal !== signal) updateSource(link.sourceId, { signal })
       }
+      if (r.type === 'inbound-rtp' && r.jitterBufferEmittedCount) {
+        jb[r.kind as string] = (r.jitterBufferDelay / r.jitterBufferEmittedCount) * 1000
+      }
     })
+    // Estimate: half the round trip + jitter buffer + capture/encode (~60 ms video, ~30 ms audio).
+    const st = store.get()
+    const src = st.sources.find((s) => s.id === link.sourceId)
+    if (src && src.latencyKind !== 'measured' && jb.video !== undefined) {
+      const est = Math.round((rtt * 500 + jb.video + 60) / 5) * 5
+      if (Math.abs((src.latency ?? 0) - est) >= 10) updateSource(link.sourceId, { latency: est, latencyKind: 'estimated' })
+    }
+    const ch = st.channels.find((c) => c.id === link.channelId)
+    if (ch && jb.audio !== undefined) {
+      const est = Math.round((rtt * 500 + jb.audio + 30) / 5) * 5
+      if (Math.abs((ch.latency ?? 0) - est) >= 10) {
+        store.set((s) => ({ channels: s.channels.map((c) => (c.id === ch.id ? { ...c, latency: est, latencyKind: 'estimated' } : c)) }))
+      }
+    }
   }, 2000)
 }
 
@@ -202,7 +238,14 @@ export function joinRoom(
   stream: MediaStream,
   caps: HwCaps,
   facing: string,
-  on: { tally(t: Tally): void; hw(m: Extract<HostMsg, { type: 'hw' }>): void; flip(): void; state(s: string): void },
+  on: {
+    tally(t: Tally): void
+    hw(m: Extract<HostMsg, { type: 'hw' }>): void
+    flip(): void
+    state(s: string): void
+    clock(offset: number, rtt: number): void
+    slate(): void
+  },
 ): Sender {
   const p = new Peer(peerOptions())
   let call: MediaConnection | null = null
@@ -211,6 +254,29 @@ export function joinRoom(
   let closed = false
   let battery: { level: number; charging: boolean; addEventListener(t: string, f: () => void): void } | null = null
   const target = room.startsWith('tally-') ? room : `tally-${room}`
+
+  // Clock sync: bursts of pings; the reply with the shortest round trip gives the best offset.
+  let best: { offset: number; rtt: number; at: number } | null = null
+  let syncTimer = 0
+  const syncBurst = () => {
+    let n = 0
+    const one = () => {
+      if (conn?.open) conn.send({ type: 'ping', t0: nowMs() } satisfies PhoneMsg)
+      if (++n < 6) setTimeout(one, 120)
+    }
+    one()
+  }
+  const onPong = (m: Extract<HostMsg, { type: 'pong' }>) => {
+    const t1 = nowMs()
+    const rtt = t1 - m.t0
+    const offset = m.th - (m.t0 + t1) / 2
+    // Prefer the tightest sample, but let old ones age out (clocks drift, Wi-Fi changes).
+    if (!best || rtt <= best.rtt || t1 - best.at > 20000) {
+      best = { offset, rtt, at: t1 }
+      on.clock(offset, rtt)
+      if (conn?.open) conn.send({ type: 'clock', offset, rtt } satisfies PhoneMsg)
+    }
+  }
 
   const sendBattery = () => battery && conn?.open && conn.send({ type: 'battery', level: battery.level, charging: battery.charging } satisfies PhoneMsg)
 
@@ -221,6 +287,10 @@ export function joinRoom(
     conn.on('open', () => {
       conn!.send({ type: 'hello', name, caps, facing } satisfies PhoneMsg)
       sendBattery()
+      best = null
+      clearInterval(syncTimer)
+      syncBurst()
+      syncTimer = window.setInterval(syncBurst, 5000)
       call = p.call(target, current, { metadata: { name } })
       call.on('stream', () => {})
       call.on('close', () => !closed && (on.state('lost'), setTimeout(dial, 2000)))
@@ -231,6 +301,8 @@ export function joinRoom(
       if (m.type === 'tally') on.tally(m.tally)
       else if (m.type === 'hw') on.hw(m)
       else if (m.type === 'flip') on.flip()
+      else if (m.type === 'pong') onPong(m)
+      else if (m.type === 'slate') on.slate()
     })
     conn.on('close', () => !closed && on.state('lost'))
   }
@@ -267,6 +339,7 @@ export function joinRoom(
     },
     close() {
       closed = true
+      clearInterval(syncTimer)
       p.destroy()
     },
   }

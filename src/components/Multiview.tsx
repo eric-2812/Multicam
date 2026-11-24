@@ -33,6 +33,11 @@ function Tile({ src, index }: { src: VideoSource; index: number }) {
         {program && <span className="tally-tag pgm">ON AIR</span>}
         {preview && !program && <span className="tally-tag pvw">PREVIEW</span>}
         <span className="grow" />
+        {src.latency !== undefined && (
+          <span className={`lat ${src.delay ? 'has-delay' : ''}`} title={`Arrives ${src.latency} ms late${src.delay ? `, delayed ${src.delay} ms to stay in sync` : ''}`}>
+            {src.latency + src.delay}ms
+          </span>
+        )}
         {src.signal !== undefined && <Signal bars={src.status === 'live' ? src.signal : 0} />}
         {src.battery !== undefined && <Battery level={src.battery} />}
       </div>

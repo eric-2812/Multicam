@@ -6,6 +6,7 @@ import { Mixer } from './components/Mixer'
 import { Monitors } from './components/Monitors'
 import { Multiview } from './components/Multiview'
 import { PhoneSender } from './components/PhoneSender'
+import { SyncPanel } from './components/SyncPanel'
 import { TopBar } from './components/TopBar'
 import { loadDemo } from './demo/demo'
 import { audio } from './engine/audio'
@@ -33,6 +34,7 @@ const SHORTCUTS: [string, string][] = [
   ['R', 'Start / stop recording'],
   ['F', 'Fade to black'],
   ['L', 'Lower third on / off'],
+  ['S', 'Slate (sync flash + beep)'],
   ['Double-click a tile', 'Take it to program'],
 ]
 
@@ -65,7 +67,7 @@ function useShortcuts(onHelp: () => void) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement
-      if (el.closest('input:not([type=range]), textarea, select, [role=application]') || store.get().addOpen) return
+      if (el.closest('input:not([type=range]), textarea, select, [role=application]') || store.get().addOpen || store.get().syncOpen) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const st = store.get()
       const digit = /^Digit([1-9])$/.exec(e.code)
@@ -79,6 +81,7 @@ function useShortcuts(onHelp: () => void) {
       else if (e.key === 'r' || e.key === 'R') video.isRecording ? video.stopRecording() : video.startRecording()
       else if (e.key === 'f' || e.key === 'F') store.set({ ftb: !st.ftb })
       else if (e.key === 'l' || e.key === 'L') store.set({ lowerThird: { ...st.lowerThird, on: !st.lowerThird.on } })
+      else if (e.key === 's' || e.key === 'S') video.slate()
       else if (e.key === '?') onHelp()
       else return
       e.preventDefault()
@@ -120,6 +123,7 @@ function ControlRoom() {
       </main>
       <Mixer />
       <AddDevice />
+      <SyncPanel />
       {help && <Help onClose={() => setHelp(false)} />}
       <Toasts />
     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadDemo, unloadDemo } from '../demo/demo'
 import { audio } from '../engine/audio'
+import { masterTC, nowMs } from '../engine/timecode'
 import { video } from '../engine/video'
 import { store, useStore } from '../store'
 import { Icon } from './Icon'
@@ -10,16 +11,18 @@ function Timecode() {
   useEffect(() => {
     let raf = 0
     const tick = () => {
-      const d = new Date()
-      const f = Math.floor((d.getMilliseconds() / 1000) * 30)
-      const p = (n: number) => String(n).padStart(2, '0')
-      if (ref.current) ref.current.textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}:${p(f)}`
+      const st = store.get()
+      if (ref.current) ref.current.textContent = masterTC(nowMs(), st.fps, st.tcMode, st.recordingSince)
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
   }, [])
-  return <span ref={ref} className="timecode" aria-label="Time of day" />
+  return (
+    <button className="timecode" onClick={() => store.set({ syncOpen: true })} title="Master timecode — open Sync & timecode">
+      <span ref={ref} />
+    </button>
+  )
 }
 
 function Elapsed({ since }: { since: number }) {
@@ -39,6 +42,10 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
   const listen = useStore((s) => s.listen)
   const count = useStore((s) => s.sources.length)
   const mics = useStore((s) => s.channels.length)
+  const aligned = useStore((s) => {
+    const t = [...s.sources, ...s.channels].filter((x) => x.status === 'live').map((x) => (x.latency ?? 0) + x.delay)
+    return !t.length || Math.max(...t) - Math.min(...t) <= 25
+  })
 
   return (
     <header className="topbar">
@@ -83,6 +90,9 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
           aria-pressed={listen}
         >
           <Icon name="headphones" /> <span className="hide-sm">{listen ? 'Listening' : 'Listen'}</span>
+        </button>
+        <button className="btn btn-ghost" onClick={() => store.set({ syncOpen: true })} title="Timecode, latency and lip sync">
+          <span className={`sync-dot ${aligned ? 'ok' : 'off'}`} /> <span className="hide-sm">Sync</span>
         </button>
         <button className="btn btn-ghost" onClick={() => video.snapshot()} title="Save a still of the program output">
           <Icon name="camera" /> <span className="hide-sm">Still</span>

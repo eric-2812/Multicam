@@ -12,6 +12,11 @@ A multicam control room that runs in the browser. Connect cameras and microphone
 - **Lens rings** — focus, aperture and shutter rings that only show up when the camera supports them. Real cameras get the hardware controls the browser exposes (manual focus and shutter on many phones and some webcams); demo cameras simulate a real lens: depth of field, wide-open vignetting, motion blur on slow shutters and auto-ISO grain.
 - **Audio mixer** — a channel strip per mic with meters, fader, pan, mute, solo and audio-follows-video; master meters and "Listen".
 - **Record** the program (video + mix) to MP4/WebM, or grab a still.
+- **Timestamp sync** — one master timecode (time of day or record-run, 25/30 fps) for everything:
+  - per-device latency (measured from frame capture times where the browser reports them, estimated otherwise) and **Auto-align**, which delays the faster cameras and mics to match the slowest so picture and sound stay in lip sync;
+  - phones sync their clocks to the control room over Wi-Fi (NTP-style) and show the master timecode on screen;
+  - **Slate** (`S`): one white flash + beep on every camera, the mix and every phone, for lining up footage;
+  - timecode burn-in, **ISO recording** of every camera starting on the same frame, and an **EDL + CSV cut list** saved with each recording.
 
 ## Connecting devices
 
@@ -23,7 +28,7 @@ A multicam control room that runs in the browser. Connect cameras and microphone
 | **Bluetooth** | Bluetooth mics/headsets once paired with the computer; BLE accessories (remotes, gimbals) via Web Bluetooth with battery level. Bluetooth can't carry live video, so wireless cameras use Wi-Fi. |
 | **Screen** | A screen, window or tab, with its audio. |
 
-Keyboard: `1–9` preview, `Shift+1–9` take to program, `Space` cut, `Enter` auto, `R` record, `F` fade to black, `L` lower third, `?` help.
+Keyboard: `1–9` preview, `Shift+1–9` take to program, `Space` cut, `Enter` auto, `R` record, `F` fade to black, `L` lower third, `S` slate, `?` help.
 
 ## Run it
 

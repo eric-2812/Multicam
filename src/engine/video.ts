@@ -2,7 +2,9 @@ import { SCENES, WORLD_H, WORLD_W } from '../demo/scenes'
 import { store, toast, type State } from '../store'
 import type { VideoSource } from '../types'
 import { audio } from './audio'
+import { setSceneTime } from '../demo/voices'
 import { exposureModel, subjectFocus } from './lens'
+import { masterTC, nowMs, runTC, stamp, todTC } from './timecode'
 
 export const FRAME_W = 960
 export const FRAME_H = 540
@@ -24,6 +26,47 @@ interface Runtime {
   /** Phone links get told when they go on air. */
   onTally?: (t: Tally) => void
   cleanup?: () => void
+  /** Ring of past frames, for sources delayed to line up with slower ones. */
+  history?: FrameDelay
+  /** Smoothed capture→display latency from requestVideoFrameCallback (ms). */
+  measured?: number
+}
+
+/** Up to ~700 ms of past frames at 30 fps, recycled from a small pool. */
+class FrameDelay {
+  private frames: { c: HTMLCanvasElement; t: number }[] = []
+  private pool: HTMLCanvasElement[] = []
+  push(src: HTMLCanvasElement, t: number) {
+    const last = this.frames[this.frames.length - 1]
+    if (last && t - last.t < 30) return
+    let c = this.pool.pop()
+    if (!c) {
+      c = document.createElement('canvas')
+      c.width = FRAME_W
+      c.height = FRAME_H
+    }
+    c.getContext('2d')!.drawImage(src, 0, 0)
+    this.frames.push({ c, t })
+    while (this.frames.length > 24) this.pool.push(this.frames.shift()!.c)
+  }
+  /** Newest frame captured at or before time t. */
+  get(t: number) {
+    for (let i = this.frames.length - 1; i >= 0; i--) if (this.frames[i].t <= t) return this.frames[i].c
+    return this.frames[0]?.c ?? null
+  }
+}
+
+/** One ISO (per-camera) recorder. */
+interface IsoRec {
+  rec: MediaRecorder
+  name: string
+}
+
+export interface CutEvent {
+  ms: number
+  id: string
+  name: string
+  kind: 'cut' | 'slate'
 }
 
 function mediaSize(m: HTMLVideoElement | HTMLImageElement): [number, number] {
@@ -99,6 +142,11 @@ class VideoEngine {
   private ftbLevel = 0
   private ltLevel = 0
   private recorder: MediaRecorder | null = null
+  private isos: IsoRec[] = []
+  private cutLog: CutEvent[] = []
+  private lastProgram: string | null = null
+  private slateUntil = 0
+  private lastLatencyPush = 0
 
   private runtime(id: string): Runtime {
     let rt = this.runtimes.get(id)
@@ -132,7 +180,27 @@ class VideoEngine {
     rt.media = v
     rt.stream = stream
     Object.assign(rt, extra)
+    this.measure(rt, v)
     return rt
+  }
+
+  /**
+   * Chrome reports when each frame was captured (captureTime) for cameras and WebRTC streams;
+   * the gap to "now" is the real glass-to-screen latency of that source.
+   */
+  private measure(rt: Runtime, v: HTMLVideoElement) {
+    type Meta = { captureTime?: number; receiveTime?: number }
+    const rvfc = (v as HTMLVideoElement & { requestVideoFrameCallback?: (cb: (now: number, m: Meta) => void) => number }).requestVideoFrameCallback
+    if (!rvfc) return
+    const cb = (now: number, m: Meta) => {
+      if (rt.media !== v) return
+      if (m.captureTime && m.captureTime > 0) {
+        const lat = now - m.captureTime
+        if (lat > 0 && lat < 5000) rt.measured = rt.measured === undefined ? lat : rt.measured * 0.9 + lat * 0.1
+      }
+      rvfc.call(v, cb)
+    }
+    rvfc.call(v, cb)
   }
 
   attachUrl(id: string, url: string, asVideo: boolean, onError: () => void, onTainted: () => void) {
@@ -204,6 +272,14 @@ class VideoEngine {
         rt.onTally?.(tally)
       }
     }
+    if (st.program !== this.lastProgram) {
+      this.lastProgram = st.program
+      if (this.recorder && st.program) this.logEvent(st.program, 'cut')
+    }
+    if (performance.now() - this.lastLatencyPush > 1000) {
+      this.lastLatencyPush = performance.now()
+      this.pushMeasuredLatency(st)
+    }
     this.ftbLevel += ((st.ftb ? 1 : 0) - this.ftbLevel) * 0.12
     this.ltLevel += ((st.lowerThird.on ? 1 : 0) - this.ltLevel) * 0.15
     if (this.monitors.program) this.composeProgram(this.monitors.program, st, t)
@@ -236,7 +312,10 @@ class VideoEngine {
       sx.translate(W / 2, H / 2)
       sx.scale(k, k)
       sx.translate(-(WORLD_W / 2 + s.pan * panRange), -(WORLD_H / 2 + s.tilt * tiltRange))
-      SCENES[src.scene]?.(sx, t)
+      // A simulated device shows the world as it was `latency` ms ago, plus any sync delay.
+      const lag = (src.latencyKind === 'simulated' ? (src.latency ?? 0) : 0) + src.delay
+      setSceneTime(performance.now() - lag)
+      SCENES[src.scene]?.(sx, t - lag / 1000)
       sx.setTransform(1, 0, 0, 1, 0, 0)
     } else if (rt.media) {
       const [vw, vh] = mediaSize(rt.media)
@@ -245,6 +324,17 @@ class VideoEngine {
         return
       }
       this.drawMedia(sx, rt.media, vw, vh, src)
+    }
+
+    // Sync delay for real sources: show the frame from `delay` ms ago.
+    let pic: HTMLCanvasElement = sc
+    if (!sim && src.delay > 0) {
+      rt.history ??= new FrameDelay()
+      const now = performance.now()
+      rt.history.push(sc, now)
+      pic = rt.history.get(now - src.delay) ?? sc
+    } else if (rt.history) {
+      rt.history = undefined
     }
 
     // 2. Lens + image processing onto the frame.
@@ -289,9 +379,9 @@ class VideoEngine {
     }
     if (blur > 0.25) {
       // Blur samples beyond the edge; overscan slightly so the border doesn't go dark.
-      ctx.drawImage(sc, -blur * 2, -blur * 2, W + blur * 4, H + blur * 4)
+      ctx.drawImage(pic, -blur * 2, -blur * 2, W + blur * 4, H + blur * 4)
     } else {
-      ctx.drawImage(sc, 0, 0)
+      ctx.drawImage(pic, 0, 0)
     }
     ctx.restore()
 
@@ -321,6 +411,22 @@ class VideoEngine {
       const g = grain()
       ctx.drawImage(g, -Math.random() * 64, -Math.random() * 64, W + 128, H + 128)
       ctx.restore()
+    }
+    // Sync slate: every camera flashes white on the same frame (visible in program and ISOs).
+    if (performance.now() < this.slateUntil) {
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, W, H)
+    }
+  }
+
+  private pushMeasuredLatency(st: State) {
+    for (const src of st.sources) {
+      const m = this.runtimes.get(src.id)?.measured
+      if (m === undefined || src.latencyKind === 'simulated') continue
+      const ms = Math.round(m / 5) * 5
+      if (src.latencyKind !== 'measured' || Math.abs((src.latency ?? 0) - ms) >= 10) {
+        store.set((s) => ({ sources: s.sources.map((x) => (x.id === src.id ? { ...x, latency: ms, latencyKind: 'measured' } : x)) }))
+      }
     }
   }
 
@@ -459,6 +565,20 @@ class VideoEngine {
       ctx.fill()
     }
 
+    if (st.burnIn) {
+      const k = W / 1280
+      const tc = masterTC(nowMs(), st.fps, st.tcMode, st.recordingSince)
+      ctx.save()
+      ctx.font = `600 ${30 * k}px "IBM Plex Mono", ui-monospace, monospace`
+      const tw = ctx.measureText(tc).width
+      ctx.fillStyle = 'rgba(0,0,0,.75)'
+      ctx.fillRect(W / 2 - tw / 2 - 14 * k, H - 64 * k, tw + 28 * k, 44 * k)
+      ctx.fillStyle = '#fff'
+      ctx.textAlign = 'center'
+      ctx.fillText(tc, W / 2, H - 32 * k)
+      ctx.restore()
+    }
+
     if (this.ftbLevel > 0.005) {
       ctx.fillStyle = `rgba(0,0,0,${Math.min(1, this.ftbLevel * 1.02)})`
       ctx.fillRect(0, 0, W, H)
@@ -524,48 +644,116 @@ class VideoEngine {
     return !!this.recorder
   }
 
+  /** Flash + beep on every camera and in the mix, and log it — a clapperboard for syncing in post. */
+  slate() {
+    this.slateUntil = performance.now() + 70
+    audio.slate()
+    const st = store.get()
+    if (this.recorder && st.program) this.logEvent(st.program, 'slate')
+    window.dispatchEvent(new CustomEvent('tally-slate'))
+    toast(`Slate at ${todTC(nowMs(), st.fps)}`, 'info')
+  }
+
+  private logEvent(id: string, kind: CutEvent['kind']) {
+    const name = store.get().sources.find((s) => s.id === id)?.name ?? id
+    this.cutLog.push({ ms: nowMs(), id, name, kind })
+  }
+
   startRecording() {
     const c = this.monitors.program
     if (!c || this.recorder) return
+    const st = store.get()
     try {
       const stream = c.captureStream(30)
       audio.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr))
-      const types = [
-        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-        'video/mp4',
-        'video/webm;codecs=vp9,opus',
-        'video/webm;codecs=vp8,opus',
-        'video/webm',
-      ]
-      const mimeType = types.find((m) => MediaRecorder.isTypeSupported(m)) ?? ''
-      const rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 })
-      const chunks: Blob[] = []
-      rec.ondataavailable = (e) => e.data.size && chunks.push(e.data)
-      rec.onstop = () => {
-        const type = rec.mimeType || 'video/webm'
-        const ext = type.includes('mp4') ? 'mp4' : 'webm'
-        download(new Blob(chunks, { type }), `program-${stamp()}.${ext}`)
+      const rec = new MediaRecorder(stream, { mimeType: pickMime(true), videoBitsPerSecond: 8_000_000 })
+      const since = nowMs()
+      const tag = stamp(since)
+      collect(rec, (blob, ext) => {
+        download(blob, `program-${tag}.${ext}`)
         toast(`Recording saved (${ext.toUpperCase()})`, 'good')
-      }
+      })
+      // ISO: every live camera recorded on its own, all started on the same frame.
+      this.isos = st.iso
+        ? st.sources
+            .filter((s) => s.status === 'live')
+            .map((s) => {
+              const r = new MediaRecorder(this.runtime(s.id).canvas.captureStream(30), { mimeType: pickMime(false), videoBitsPerSecond: 5_000_000 })
+              const safe = s.name.replace(/[^\w-]+/g, '_')
+              collect(r, (blob, ext) => download(blob, `iso-${safe}-${tag}.${ext}`))
+              return { rec: r, name: s.name }
+            })
+        : []
       rec.start(1000)
+      this.isos.forEach((i) => i.rec.start(1000))
       this.recorder = rec
-      store.set({ recordingSince: Date.now() })
+      this.cutLog = []
+      store.set({ recordingSince: since })
+      if (st.program) this.logEvent(st.program, 'cut')
+      this.lastProgram = st.program
     } catch (e) {
       toast(`Could not start recording: ${(e as Error).message}`, 'bad')
     }
   }
 
   stopRecording() {
+    const st = store.get()
+    const since = st.recordingSince
+    const end = nowMs()
     this.recorder?.stop()
+    this.isos.forEach((i) => i.rec.state !== 'inactive' && i.rec.stop())
     this.recorder = null
+    this.isos = []
     store.set({ recordingSince: null })
+    if (since && this.cutLog.length) {
+      const tag = stamp(since)
+      download(new Blob([buildEdl(this.cutLog, since, end, st.fps, tag)], { type: 'text/plain' }), `program-${tag}.edl`)
+      download(new Blob([buildCsv(this.cutLog, since, st.fps)], { type: 'text/csv' }), `program-${tag}-cuts.csv`)
+    }
   }
 }
 
-function stamp() {
-  const d = new Date()
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+function pickMime(withAudio: boolean) {
+  const types = withAudio
+    ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+    : ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm']
+  return types.find((m) => MediaRecorder.isTypeSupported(m)) ?? ''
+}
+
+function collect(rec: MediaRecorder, done: (b: Blob, ext: string) => void) {
+  const chunks: Blob[] = []
+  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data)
+  rec.onstop = () => {
+    const type = rec.mimeType || 'video/webm'
+    done(new Blob(chunks, { type }), type.includes('mp4') ? 'mp4' : 'webm')
+  }
+}
+
+/**
+ * CMX3600 edit decision list: source in/out are time-of-day timecode (matching the ISO files'
+ * start stamp and the phones' synced clocks), record in/out run from 00:00:00:00.
+ */
+function buildEdl(log: CutEvent[], since: number, end: number, fps: 25 | 30, tag: string) {
+  const cuts = log.filter((e) => e.kind === 'cut')
+  const lines = [`TITLE: TALLY PROGRAM ${tag}`, 'FCM: NON-DROP FRAME', '']
+  cuts.forEach((c, i) => {
+    const out = cuts[i + 1]?.ms ?? end
+    const reel = c.name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8).padEnd(8) || 'AX      '
+    const n = String(i + 1).padStart(3, '0')
+    lines.push(`${n}  ${reel} V     C        ${todTC(c.ms, fps)} ${todTC(out, fps)} ${runTC(c.ms - since, fps)} ${runTC(out - since, fps)}`)
+    lines.push(`* FROM CLIP NAME: ${c.name}`)
+    log
+      .filter((e) => e.kind === 'slate' && e.ms >= c.ms && e.ms < out)
+      .forEach((e) => lines.push(`* SLATE AT ${runTC(e.ms - since, fps)} (TOD ${todTC(e.ms, fps)})`))
+    lines.push('')
+  })
+  return lines.join('\r\n')
+}
+
+function buildCsv(log: CutEvent[], since: number, fps: 25 | 30) {
+  const rows = ['event,record_tc,time_of_day_tc,unix_ms,source']
+  log.forEach((e) => rows.push(`${e.kind},${runTC(e.ms - since, fps)},${todTC(e.ms, fps)},${Math.round(e.ms)},"${e.name.replace(/"/g, '""')}"`))
+  return rows.join('\n')
 }
 
 function download(blob: Blob, name: string) {

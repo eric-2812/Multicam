@@ -81,7 +81,16 @@ export interface VideoSource {
   hw?: HwCaps
   /** Cross-origin stream that can be shown but not recorded. */
   tainted?: boolean
+  /** How late the picture arrives (ms), and where that number comes from. */
+  latency?: number
+  latencyKind?: LatencyKind
+  /** Extra delay added to line this source up with the others (ms). */
+  delay: number
+  /** Phone clock vs the master clock, from the Wi-Fi sync handshake. */
+  clock?: { offset: number; rtt: number }
 }
+
+export type LatencyKind = 'measured' | 'estimated' | 'simulated'
 
 export type Voice = 'host' | 'guest' | 'music' | 'room' | 'crowd'
 
@@ -100,6 +109,10 @@ export interface AudioChannel {
   afv: string | null
   battery?: number
   status: 'live' | 'lost'
+  latency?: number
+  latencyKind?: LatencyKind
+  /** Extra delay for lip sync (ms). */
+  delay: number
 }
 
 export type TransitionType = 'mix' | 'dip' | 'wipe' | 'push'

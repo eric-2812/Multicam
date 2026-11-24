@@ -19,12 +19,12 @@ export function loadDemo() {
   const PHONE: HwCaps = { width: 1920, height: 1080, fps: 30, focus: [0, 1], shutter: [15, 4000] }
   const DRONE: HwCaps = { width: 3840, height: 2160, fps: 30, shutter: [30, 8000] }
 
-  const wide = cam({ name: 'Studio Wide', scene: 'stage', link: 'network', detail: 'PTZ 20× · Ethernet / NDI', ptz: true, hw: PTZ })
-  const host = cam({ name: 'Host CU', scene: 'host', link: 'usb', detail: 'Mirrorless · USB-C capture', hw: FULL })
-  const guest = cam({ name: 'Guest CU', scene: 'guest', link: 'wifi', detail: 'Mirrorless · Wi-Fi transmitter', battery: 78, signal: 4, hw: { ...FULL, aperture: [2, 22] } })
-  const desk = cam({ name: 'Desk Overhead', scene: 'overhead', link: 'usb', detail: 'Webcam 1080p · USB', hw: WEBCAM })
-  const drone = cam({ name: 'Drone', scene: 'drone', link: 'wifi', detail: 'Drone · 5.8 GHz video link', battery: 64, signal: 3, hw: DRONE })
-  const crowd = cam({ name: 'Audience', scene: 'crowd', link: 'wifi', detail: 'Phone · Wi-Fi', battery: 52, signal: 3, hw: PHONE })
+  const wide = cam({ name: 'Studio Wide', scene: 'stage', link: 'network', detail: 'PTZ 20× · Ethernet / NDI', ptz: true, hw: PTZ, latency: 90, latencyKind: 'simulated' })
+  const host = cam({ name: 'Host CU', scene: 'host', link: 'usb', detail: 'Mirrorless · USB-C capture', hw: FULL, latency: 50, latencyKind: 'simulated' })
+  const guest = cam({ name: 'Guest CU', scene: 'guest', link: 'wifi', detail: 'Mirrorless · Wi-Fi transmitter', battery: 78, signal: 4, hw: { ...FULL, aperture: [2, 22] }, latency: 120, latencyKind: 'simulated' })
+  const desk = cam({ name: 'Desk Overhead', scene: 'overhead', link: 'usb', detail: 'Webcam 1080p · USB', hw: WEBCAM, latency: 70, latencyKind: 'simulated' })
+  const drone = cam({ name: 'Drone', scene: 'drone', link: 'wifi', detail: 'Drone · 5.8 GHz video link', battery: 64, signal: 3, hw: DRONE, latency: 220, latencyKind: 'simulated' })
+  const crowd = cam({ name: 'Audience', scene: 'crowd', link: 'wifi', detail: 'Phone · Wi-Fi', battery: 52, signal: 3, hw: PHONE, latency: 180, latencyKind: 'simulated', clock: { offset: 12, rtt: 9 } })
   const roam = cam({
     name: 'Roaming Gimbal',
     scene: 'stage',
@@ -35,6 +35,9 @@ export function loadDemo() {
     signal: 2,
     status: 'connecting',
     hw: PHONE,
+    latency: 200,
+    latencyKind: 'simulated',
+    clock: { offset: -31, rtt: 14 },
     settings: { ...DEFAULT_SETTINGS, zoom: 1.9, pan: 0.35, tilt: -0.1 },
   })
   wide.presets = [{ zoom: 1, pan: 0, tilt: 0 }, { zoom: 2.4, pan: -0.45, tilt: -0.05 }, { zoom: 2.4, pan: 0.45, tilt: -0.08 }, { zoom: 1.6, pan: 0, tilt: -0.25 }, null, null]
@@ -42,11 +45,11 @@ export function loadDemo() {
 
   const ch = (p: Partial<AudioChannel> & Pick<AudioChannel, 'name' | 'link' | 'detail' | 'voice'>) => newChannel({ kind: 'demo', ...p })
   const channels = [
-    ch({ name: 'Host Lav', voice: 'host', link: 'bluetooth', detail: 'Wireless lav · Bluetooth', battery: 86 }),
-    ch({ name: 'Guest Lav', voice: 'guest', link: 'bluetooth', detail: 'Wireless lav · Bluetooth', battery: 71, pan: 0 }),
-    ch({ name: 'Room Mic', voice: 'room', link: 'usb', detail: 'Shotgun · XLR → USB', gain: 0.8 }),
-    ch({ name: 'Music Bed', voice: 'music', link: 'usb', detail: 'Playback · USB interface', gain: 0.55 }),
-    ch({ name: 'Audience', voice: 'crowd', link: 'wifi', detail: 'Phone mic · Wi-Fi', afv: crowd.id, battery: 52 }),
+    ch({ name: 'Host Lav', voice: 'host', link: 'bluetooth', detail: 'Wireless lav · Bluetooth', battery: 86, latency: 190, latencyKind: 'simulated' }),
+    ch({ name: 'Guest Lav', voice: 'guest', link: 'bluetooth', detail: 'Wireless lav · Bluetooth', battery: 71, pan: 0, latency: 210, latencyKind: 'simulated' }),
+    ch({ name: 'Room Mic', voice: 'room', link: 'usb', detail: 'Shotgun · XLR → USB', gain: 0.8, latency: 20, latencyKind: 'simulated' }),
+    ch({ name: 'Music Bed', voice: 'music', link: 'usb', detail: 'Playback · USB interface', gain: 0.55, latency: 15, latencyKind: 'simulated' }),
+    ch({ name: 'Audience', voice: 'crowd', link: 'wifi', detail: 'Phone mic · Wi-Fi', afv: crowd.id, battery: 52, latency: 180, latencyKind: 'simulated' }),
   ]
   const accessories: Accessory[] = [
     { id: 'acc-gimbal', name: 'Gimbal Remote', detail: 'Bluetooth LE · joystick', battery: 58, link: 'bluetooth', status: 'connected' },

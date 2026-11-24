@@ -3,6 +3,8 @@ import type { State } from '../store'
 import type { AudioChannel } from '../types'
 
 interface Strip {
+  /** Simulated path latency (demo) + lip-sync compensation. */
+  delay: DelayNode
   gate: GainNode
   fader: GainNode
   panner: StereoPannerNode
@@ -58,14 +60,15 @@ class AudioEngine {
 
   private strip(id: string): Strip {
     const ctx = this.ensure()
+    const delay = ctx.createDelay(2)
     const gate = ctx.createGain()
     const fader = ctx.createGain()
     const panner = ctx.createStereoPanner()
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 1024
-    gate.connect(fader).connect(panner).connect(this.master)
+    delay.connect(gate).connect(fader).connect(panner).connect(this.master)
     fader.connect(analyser)
-    const s: Strip = { gate, fader, panner, analyser, buf: new Float32Array(1024) }
+    const s: Strip = { delay, gate, fader, panner, analyser, buf: new Float32Array(1024) }
     this.strips.set(id, s)
     return s
   }
@@ -73,14 +76,14 @@ class AudioEngine {
   addDemo(ch: AudioChannel) {
     if (this.strips.has(ch.id) || !ch.voice) return
     const s = this.strip(ch.id)
-    s.stop = createVoice(this.ctx!, ch.voice, s.gate).stop
+    s.stop = createVoice(this.ctx!, ch.voice, s.delay).stop
   }
 
   addStream(id: string, stream: MediaStream) {
     if (this.strips.has(id)) this.remove(id)
     const s = this.strip(id)
     s.source = this.ctx!.createMediaStreamSource(stream)
-    s.source.connect(s.gate)
+    s.source.connect(s.delay)
   }
 
   remove(id: string) {
@@ -103,12 +106,26 @@ class AudioEngine {
       const audible = !ch.muted && (!anySolo || ch.solo)
       s.fader.gain.setTargetAtTime(audible ? ch.gain * ch.gain : 0, now, 0.02)
       s.panner.pan.setTargetAtTime(ch.pan, now, 0.02)
+      const d = ((ch.latencyKind === 'simulated' ? (ch.latency ?? 0) : 0) + ch.delay) / 1000
+      if (Math.abs(s.delay.delayTime.value - d) > 0.0005) s.delay.delayTime.setTargetAtTime(d, now, 0.03)
       const afvOpen = !ch.afv || st.program === ch.afv || (st.transitioning && st.preview === ch.afv)
       s.gate.gain.setTargetAtTime(afvOpen ? 1 : 0, now, afvOpen ? 0.05 : 0.15)
     }
     const fade = st.ftb ? 0 : 1
     this.master.gain.setTargetAtTime(st.master * st.master * fade, now, 0.05)
     this.monitor.gain.setTargetAtTime(st.listen ? 1 : 0, now, 0.03)
+  }
+
+  /** Sync beep (1 kHz, 1 frame-ish) straight into the program mix, so it lands in every recording. */
+  slate() {
+    const ctx = this.ensure()
+    const o = ctx.createOscillator()
+    const g = ctx.createGain()
+    o.frequency.value = 1000
+    g.gain.value = 0.5
+    o.connect(g).connect(this.master)
+    o.start()
+    o.stop(ctx.currentTime + 0.08)
   }
 
   private static rms(a: AnalyserNode, buf: Float32Array<ArrayBuffer>) {

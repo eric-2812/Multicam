@@ -1,4 +1,5 @@
 import { useRef, useSyncExternalStore } from 'react'
+import type { Fps, TcMode } from './engine/timecode'
 import type { Accessory, AudioChannel, Toast, TransitionType, VideoSource } from './types'
 
 export interface LowerThird {
@@ -31,6 +32,13 @@ export interface State {
   toasts: Toast[]
   addOpen: boolean
   addTab: AddTab
+  syncOpen: boolean
+  fps: Fps
+  tcMode: TcMode
+  /** Burn the master timecode into the program picture. */
+  burnIn: boolean
+  /** Also record every camera separately (ISO), all from the same start time. */
+  iso: boolean
 }
 
 export type AddTab = 'usb' | 'phone' | 'url' | 'bluetooth' | 'screen'
@@ -56,6 +64,11 @@ const initial: State = {
   toasts: [],
   addOpen: false,
   addTab: 'usb',
+  syncOpen: false,
+  fps: 30,
+  tcMode: 'tod',
+  burnIn: false,
+  iso: false,
 }
 
 let state: State = initial

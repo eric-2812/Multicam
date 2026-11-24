@@ -1,4 +1,4 @@
-import { talk } from './voices'
+import { sceneTalk as talk } from './voices'
 
 /**
  * Procedural "camera feeds" for demo mode. Each scene draws in a world space where the

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { joinRoom, type Sender } from '../engine/phone'
 import type { Tally } from '../engine/video'
 import { capsOf } from '../engine/devices'
+import { nowMs, todTC } from '../engine/timecode'
 import { Icon } from './Icon'
 
 type Facing = 'environment' | 'user'
@@ -11,6 +12,40 @@ async function openCamera(facing: Facing, withAudio: boolean) {
     video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
     audio: withAudio ? { echoCancellation: false, noiseSuppression: true, autoGainControl: true } : false,
   })
+}
+
+/** The control room's clock, as this phone sees it after sync — big enough to film as a slate. */
+function SyncedTimecode({ offset, rtt }: { offset: number | null; rtt: number }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    let raf = 0
+    const tick = () => {
+      if (ref.current) ref.current.textContent = todTC(nowMs() + (offset ?? 0), 30)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [offset])
+  return (
+    <div className="phone-tc">
+      <span ref={ref} />
+      <small>{offset === null ? 'syncing clock…' : `synced ±${Math.max(1, Math.round(rtt / 2))} ms`}</small>
+    </div>
+  )
+}
+
+function beep() {
+  try {
+    const ctx = new AudioContext()
+    const o = ctx.createOscillator()
+    o.frequency.value = 1000
+    o.connect(ctx.destination)
+    o.start()
+    o.stop(ctx.currentTime + 0.08)
+    setTimeout(() => void ctx.close(), 300)
+  } catch {
+    // no audio output available
+  }
 }
 
 const STATE_TEXT: Record<string, string> = {
@@ -28,6 +63,8 @@ export function PhoneSender({ room }: { room: string }) {
   const [state, setState] = useState<string>('idle')
   const [tally, setTally] = useState<Tally>('none')
   const [error, setError] = useState<string | null>(null)
+  const [clock, setClock] = useState<{ offset: number | null; rtt: number }>({ offset: null, rtt: 0 })
+  const [flash, setFlash] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const sender = useRef<Sender | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -85,6 +122,12 @@ export function PhoneSender({ room }: { room: string }) {
         tally: setTally,
         state: setState,
         flip: () => void flipRef.current(),
+        clock: (offset, rtt) => setClock({ offset, rtt }),
+        slate: () => {
+          setFlash(true)
+          beep()
+          setTimeout(() => setFlash(false), 120)
+        },
         hw: (m) => {
           const t = streamRef.current?.getVideoTracks()[0]
           t?.applyConstraints({ advanced: [m.c as MediaTrackConstraintSet] }).catch(() => {})
@@ -152,6 +195,8 @@ export function PhoneSender({ room }: { room: string }) {
         <span className={`phone-tally ${tally}`}>{tally === 'program' ? 'ON AIR' : tally === 'preview' ? 'PREVIEW' : 'STANDBY'}</span>
         <span className="phone-state">{state.startsWith('error:') ? state.slice(6) : (STATE_TEXT[state] ?? state)}</span>
       </div>
+      <SyncedTimecode offset={clock.offset} rtt={clock.rtt} />
+      {flash && <div className="phone-flash" />}
       <div className="phone-controls">
         <button className="round" onClick={flip} aria-label="Switch camera">
           <Icon name="flip" size={22} />

@@ -6,6 +6,33 @@ import type { Voice } from '../types'
  * `talk` exposes the live envelopes so the demo cameras can animate mouths and applause.
  */
 export const talk = { host: 0, guest: 0, crowd: 0, applause: 0, beat: 0 }
+type Talk = typeof talk
+
+/**
+ * The last few seconds of envelopes, so a camera with latency shows mouths moving when
+ * they actually moved — which is what makes lip-sync errors visible (and fixable) in demo mode.
+ */
+const history: ({ t: number } & Talk)[] = []
+let historyTimer = 0
+function recordHistory() {
+  if (historyTimer) return
+  historyTimer = window.setInterval(() => {
+    history.push({ t: performance.now(), ...talk })
+    if (history.length > 160) history.shift()
+  }, 20)
+}
+
+/** What the demo scenes read while drawing: the envelopes as of the scene's (delayed) time. */
+export const sceneTalk: Talk = { ...talk }
+export function setSceneTime(ms: number) {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].t <= ms) {
+      Object.assign(sceneTalk, history[i])
+      return
+    }
+  }
+  Object.assign(sceneTalk, history[0] ?? talk)
+}
 
 interface VoiceHandle {
   stop(): void
@@ -238,6 +265,7 @@ function crowd(ctx: AudioContext, out: AudioNode): VoiceHandle {
 }
 
 export function createVoice(ctx: AudioContext, voice: Voice, out: AudioNode): VoiceHandle {
+  recordHistory()
   switch (voice) {
     case 'host':
     case 'guest':

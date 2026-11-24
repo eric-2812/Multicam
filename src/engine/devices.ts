@@ -20,12 +20,13 @@ export function newSource(p: Partial<VideoSource> & Pick<VideoSource, 'name' | '
     settings: { ...DEFAULT_SETTINGS },
     presets: [null, null, null, null, null, null],
     status: 'live',
+    delay: 0,
     ...p,
   }
 }
 
 export function newChannel(p: Partial<AudioChannel> & Pick<AudioChannel, 'name' | 'kind' | 'link' | 'detail'>): AudioChannel {
-  return { id: uid('mic'), gain: 1, pan: 0, muted: false, solo: false, afv: null, status: 'live', ...p }
+  return { id: uid('mic'), gain: 1, pan: 0, muted: false, solo: false, afv: null, status: 'live', delay: 0, ...p }
 }
 
 export function mediaSupported() {
@@ -111,7 +112,8 @@ export async function addWebcam(device: MediaDeviceInfo, quality: '720' | '1080'
   })
   const track = stream.getVideoTracks()[0]
   const name = device.label || 'Camera'
-  const src = newSource({ name: shortName(name), kind: 'webcam', link: guessLink(name), detail: name, hw: capsOf(track) })
+  const link = guessLink(name)
+  const src = newSource({ name: shortName(name), kind: 'webcam', link, detail: name, hw: capsOf(track), ...estimate(link) })
   video.attachStream(src.id, stream)
   watchEnded(src.id, track, src.name)
   addSource(src)
@@ -124,7 +126,17 @@ export async function addMic(device: MediaDeviceInfo) {
     audio: { deviceId: { exact: device.deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
   })
   const label = device.label || 'Microphone'
-  const ch = newChannel({ name: shortName(label), kind: 'mic', link: guessLink(label), detail: label })
+  const link = guessLink(label)
+  // Browsers report the input buffer latency; Bluetooth adds its own codec delay on top.
+  const base = ((stream.getAudioTracks()[0].getSettings() as { latency?: number }).latency ?? 0.01) * 1000
+  const ch = newChannel({
+    name: shortName(label),
+    kind: 'mic',
+    link,
+    detail: label,
+    latency: Math.round(base + (link === 'bluetooth' ? 160 : 5)),
+    latencyKind: 'estimated',
+  })
   audio.addStream(ch.id, stream)
   stream.getAudioTracks()[0].addEventListener('ended', () => {
     store.set((s) => ({ channels: s.channels.map((c) => (c.id === ch.id ? { ...c, status: 'lost' } : c)) }))
@@ -137,7 +149,7 @@ export async function addMic(device: MediaDeviceInfo) {
 export async function addScreen() {
   const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true })
   const track = stream.getVideoTracks()[0]
-  const src = newSource({ name: 'Screen', kind: 'screen', link: 'screen', detail: track.label || 'Shared screen', hw: capsOf(track) })
+  const src = newSource({ name: 'Screen', kind: 'screen', link: 'screen', detail: track.label || 'Shared screen', hw: capsOf(track), ...estimate('screen') })
   video.attachStream(src.id, stream)
   watchEnded(src.id, track, 'Screen share')
   addSource(src)
@@ -152,7 +164,7 @@ export async function addScreen() {
 
 export function addUrlCamera(name: string, url: string) {
   const asVideo = /\.(mp4|webm|mov|m3u8|ogv)(\?|$)/i.test(url)
-  const src = newSource({ name: name || 'IP camera', kind: 'url', link: 'network', detail: url })
+  const src = newSource({ name: name || 'IP camera', kind: 'url', link: 'network', detail: url, ...estimate('network') })
   addSource(src)
   video.attachUrl(
     src.id,
@@ -234,6 +246,12 @@ export async function scanBluetooth() {
     // Connected, but the device does not publish a battery level.
   }
   toast(`${name} paired`, 'good')
+}
+
+/** Typical latency per connection, used until the browser gives us a measurement. */
+function estimate(link: Link): { latency: number; latencyKind: 'estimated' } {
+  const ms: Record<Link, number> = { usb: 70, builtin: 50, wifi: 180, bluetooth: 200, network: 250, screen: 80 }
+  return { latency: ms[link], latencyKind: 'estimated' }
 }
 
 function shortName(label: string) {
