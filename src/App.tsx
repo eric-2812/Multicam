@@ -1,22 +1,23 @@
+import { Icon } from './components/Icon'
 import { PhoneSender } from './components/PhoneSender'
 import { Shell } from './components/Shell'
-import { Icon } from './components/Icon'
-import { loadDemo } from './demo/demo'
 import { audio } from './engine/audio'
-import { store, useStore } from './store'
+import { store, useStore, type AddTab } from './store'
 
-const FEATURES: [string, string, string][] = [
-  ['film', 'Records every camera', 'Each camera and mic to its own file, all starting on the same frame — ready for a multicam edit.'],
-  ['settings', 'Full camera control', 'Focus, iris, shutter, ISO, ND, white balance, profiles, PTZ and presets — whatever each camera supports.'],
-  ['clock', 'One timecode', 'Master clock, lip-sync alignment, slate, markers and EDL / take sheets for the edit.'],
-  ['wifi', 'Any connection', 'USB and capture cards, phones over Wi-Fi, IP cameras, Bluetooth mics, screen share.'],
+/** Where each kind of camera gets connected. */
+const SOURCES: { tab: AddTab; icon: string; title: string; how: string }[] = [
+  { tab: 'usb', icon: 'usb', title: 'Webcam or capture card', how: 'USB, HDMI or SDI capture, built-in cameras' },
+  { tab: 'iphone', icon: 'phone', title: 'iPhone', how: 'Continuity Camera or Wi-Fi, records its own copy' },
+  { tab: 'gopro', icon: 'cam', title: 'GoPro', how: 'Webcam mode over USB; record on the card via Bluetooth' },
+  { tab: 'sony', icon: 'camera', title: 'Sony Alpha', how: 'USB streaming or HDMI; start recording via Bluetooth' },
+  { tab: 'phone', icon: 'wifi', title: 'Android phone', how: 'Over Wi-Fi with a QR code' },
+  { tab: 'url', icon: 'network', title: 'IP or PTZ camera', how: 'MJPEG, MP4 or HLS address' },
 ]
 
 function Welcome() {
-  const start = (demo: boolean) => {
+  const open = (tab: AddTab) => {
     audio.ensure()
-    store.set(demo ? { started: true } : { started: true, page: 'setup', setupSection: 'devices' })
-    if (demo) loadDemo()
+    store.set({ started: true, page: 'setup', setupSection: 'devices', addTab: tab })
   }
   return (
     <main className="welcome">
@@ -30,32 +31,29 @@ function Welcome() {
           </span>
           <span className="hdr-name">Tally</span>
         </div>
-        <h1>Multicam recording and control</h1>
-        <p className="welcome-lead">Connect every camera and microphone, set them up from one place, and record them all in sync for editing.</p>
-        <div className="welcome-actions">
-          <button className="btn btn-primary btn-lg" onClick={() => start(false)}>
-            <Icon name="plus" size={16} /> Connect devices
-          </button>
-          <button className="btn btn-lg" onClick={() => start(true)}>
-            Open demo studio
-          </button>
-        </div>
-        {import.meta.env.VITE_PREVIEW === '1' && (
-          <p className="note">
-            Browser preview: the demo works fully, but cameras, microphones, Wi-Fi phones, Bluetooth and saving files are blocked here. Use the full app to connect real devices.
-          </p>
-        )}
-        <ul className="welcome-feats">
-          {FEATURES.map(([icon, title, text]) => (
-            <li key={title}>
-              <Icon name={icon} size={16} />
-              <div>
-                <b>{title}</b>
-                <span>{text}</span>
-              </div>
+        <h1>Record every camera at once, in sync.</h1>
+        <p className="welcome-lead">
+          Plug in or pair your cameras and mics, set each one up from here, and press record. Every camera and every mic writes its own file with the same start
+          timecode, ready for a multicam edit.
+        </p>
+        <h2 className="welcome-h">What are you connecting?</h2>
+        <ul className="welcome-src">
+          {SOURCES.map((s) => (
+            <li key={s.tab}>
+              <button onClick={() => open(s.tab)}>
+                <Icon name={s.icon} size={18} />
+                <span>
+                  <b>{s.title}</b>
+                  <small>{s.how}</small>
+                </span>
+                <Icon name="chevron" size={14} className="welcome-go" />
+              </button>
             </li>
           ))}
         </ul>
+        {import.meta.env.VITE_PREVIEW === '1' && (
+          <p className="note">This browser preview can't reach cameras, microphones, Bluetooth or files. Open the full app to connect devices.</p>
+        )}
       </div>
     </main>
   )

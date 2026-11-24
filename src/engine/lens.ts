@@ -1,4 +1,3 @@
-import type { CamSettings, HwCaps, VideoSource } from '../types'
 
 /** Ring markings, laid out evenly like the engraving on a real lens barrel. */
 export interface Stop {
@@ -40,15 +39,6 @@ export function posOf(stops: Stop[], v: number) {
   return stops.length - 1
 }
 
-/** Where the subject sits for each demo scene, in metres — autofocus locks onto this. */
-const SUBJECT_M: Record<string, number> = { stage: 4, host: 1.2, guest: 1.3, overhead: 0.7, drone: Infinity, crowd: 10 }
-
-/** Autofocus target as a ring fraction (0 = closest, 1 = infinity). */
-export function subjectFocus(src: VideoSource) {
-  const m = SUBJECT_M[src.scene ?? ''] ?? 3
-  return m === Infinity ? 1 : posOf(FOCUS_STOPS, m) / (FOCUS_STOPS.length - 1)
-}
-
 export function focusLabel(frac: number) {
   const pos = frac * (FOCUS_STOPS.length - 1)
   if (pos > FOCUS_STOPS.length - 1.5) return pos >= FOCUS_STOPS.length - 1.05 ? '∞' : '>10 m'
@@ -58,21 +48,6 @@ export function focusLabel(frac: number) {
 
 export function shutterLabel(den: number) {
   return `1/${Math.round(den)}`
-}
-
-/**
- * Simulated exposure for demo lenses. Aperture and shutter change the light reaching the
- * sensor; auto-ISO compensates (adding grain) until it runs out of range.
- */
-export function exposureModel(s: CamSettings, hw?: HwCaps) {
-  const apEv = hw?.aperture ? 2 * Math.log2(2.8 / s.aperture) : 0
-  const shEv = hw?.shutter ? Math.log2(50 / s.shutter) : 0
-  const ndEv = hw?.nd ? -s.nd : 0
-  const lensEv = apEv + shEv + ndEv
-  const isoStops = s.autoExposure ? Math.max(0, Math.min(7, -lensEv)) : Math.max(0, Math.min(7, Math.log2(s.iso / 100)))
-  const iso = s.autoExposure ? Math.round((100 * Math.pow(2, isoStops)) / 10) * 10 : s.iso
-  const residual = lensEv + isoStops
-  return { iso, isoStops, ev: residual + s.exposure, lensEv }
 }
 
 export const ISO_STOPS: Stop[] = [100, 200, 400, 800, 1600, 3200, 6400, 12800].map((v) => ({ v, label: `${v}` }))

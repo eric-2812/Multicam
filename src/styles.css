@@ -2520,50 +2520,6 @@ span.strip-name {
   color: var(--text-2);
 }
 
-.welcome-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.welcome-feats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px;
-  margin: 16px 0 0;
-  padding: 0;
-  overflow: hidden;
-  list-style: none;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--line);
-}
-
-.welcome-feats li {
-  display: flex;
-  gap: 10px;
-  padding: 14px;
-  background: var(--panel);
-  color: var(--text-2);
-}
-
-.welcome-feats li svg {
-  flex: none;
-  margin-top: 1px;
-  color: var(--text);
-}
-
-.welcome-feats div {
-  display: grid;
-  gap: 2px;
-}
-
-.welcome-feats b {
-  font-weight: 600;
-  color: var(--text);
-}
-
 /* ---------------------------------------------------------------- toasts */
 
 .toasts {
@@ -3010,10 +2966,6 @@ span.strip-name {
     justify-self: stretch;
   }
 
-  .welcome-feats {
-    grid-template-columns: 1fr;
-  }
-
   .tbl td small {
     max-width: 180px;
   }
@@ -3117,4 +3069,110 @@ span.strip-name {
 .ro-wrap {
   color: var(--text-2);
   text-align: right;
+}
+
+/* ---------------------------------------------------------------- first run: what are you connecting? */
+
+.welcome-h {
+  margin: 12px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.welcome-src {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--line);
+}
+
+.welcome-src button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 0;
+  background: var(--panel);
+  color: var(--text-2);
+  text-align: left;
+  transition: background-color 0.12s;
+}
+
+.welcome-src button:hover {
+  background: var(--panel-2);
+}
+
+.welcome-src button:active {
+  background: var(--panel-3);
+}
+
+.welcome-src button > svg:first-child {
+  flex: none;
+  color: var(--text);
+}
+
+.welcome-src span {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.welcome-src b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.welcome-go {
+  flex: none;
+  color: var(--text-3);
+  transform: rotate(-90deg);
+  transition: transform 0.12s ease-out;
+}
+
+.welcome-src button:hover .welcome-go {
+  transform: rotate(-90deg) translateY(2px);
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------- devices: camera families */
+
+.detected {
+  display: grid;
+  gap: 8px;
+}
+
+.dev-name small {
+  display: block;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.dev-list li.remote {
+  flex-wrap: wrap;
+}
+
+/* buttons step on hover, press on click */
+.btn:active:not(:disabled),
+.tbtn:active:not(:disabled),
+.chip:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+@media (max-width: 760px) {
+  .welcome-src {
+    grid-template-columns: 1fr;
+  }
 }

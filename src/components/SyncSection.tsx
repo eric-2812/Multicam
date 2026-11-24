@@ -6,7 +6,7 @@ import type { AudioChannel, LatencyKind, VideoSource } from '../types'
 import { Icon, LinkBadge } from './Icon'
 
 const MAX_DELAY = 600
-const KIND: Record<LatencyKind, string> = { measured: 'measured', estimated: 'est.', simulated: 'sim' }
+const KIND: Record<LatencyKind, string> = { measured: 'measured', estimated: 'est.' }
 
 function BigTimecode() {
   const ref = useRef<HTMLSpanElement>(null)

@@ -1,4 +1,3 @@
-import { loadDemo, unloadDemo } from '../demo/demo'
 import { chooseFolder, folderSupported } from '../engine/recorder'
 import { store, toast, updateSource, useStore, type SetupSection } from '../store'
 import { DevicesSection } from './Devices'
@@ -16,7 +15,6 @@ const NAV: { id: SetupSection; label: string; icon: string; desc: string }[] = [
 
 function ProjectSection() {
   const p = useStore((s) => s.project)
-  const demo = useStore((s) => s.demo)
   const recording = useStore((s) => !!s.recordingSince)
   const set = (patch: Partial<typeof p>) => store.set((s) => ({ project: { ...s.project, ...patch } }))
   return (
@@ -33,10 +31,6 @@ function ProjectSection() {
       <p className="hint">
         Files are named <code>{(p.name || 'Untitled').replace(/[^\w-]+/g, '_')}_T{String(p.take).padStart(3, '0')}_C1_Camera_HHMMSSFF.mp4</code>
       </p>
-      <h3 className="set-h">Demo devices</h3>
-      <Row label="Simulated studio" hint="Seven cameras, five mics and Bluetooth accessories, to try everything without hardware">
-        <Switch label="Demo devices" on={demo} disabled={recording} onChange={(v) => (v ? loadDemo() : unloadDemo())} />
-      </Row>
     </div>
   )
 }
@@ -141,7 +135,7 @@ function RecordingSection() {
                   <Seg
                     label={`${s.name} feed`}
                     value={s.rec.feed}
-                    disabled={s.kind === 'demo' || s.kind === 'url'}
+                    disabled={s.kind === 'url'}
                     options={[
                       { v: 'clean', label: 'Clean' },
                       { v: 'processed', label: 'Processed' },

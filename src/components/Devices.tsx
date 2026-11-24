@@ -15,13 +15,18 @@ import {
   scanBluetooth,
   unlockDevices,
 } from '../engine/devices'
+import { bleSupported, forgetRemote, pairGoPro, pairSony, reconnectRemote, remotePhoto, setRemoteRecording } from '../engine/bluecams'
 import { joinUrl, onRoomStatus, openRoom, type RoomStatus } from '../engine/phone'
 import { store, toast, useStore, type AddTab } from '../store'
 import { Icon, LinkBadge } from './Icon'
+import { Switch } from './ui'
 
 const TABS: { id: AddTab; label: string; icon: string }[] = [
-  { id: 'usb', label: 'USB & built-in', icon: 'usb' },
-  { id: 'phone', label: 'Phone over Wi-Fi', icon: 'wifi' },
+  { id: 'usb', label: 'USB & capture', icon: 'usb' },
+  { id: 'iphone', label: 'iPhone', icon: 'phone' },
+  { id: 'gopro', label: 'GoPro', icon: 'cam' },
+  { id: 'sony', label: 'Sony Alpha', icon: 'camera' },
+  { id: 'phone', label: 'Android / Wi-Fi', icon: 'wifi' },
   { id: 'url', label: 'IP camera', icon: 'network' },
   { id: 'bluetooth', label: 'Bluetooth', icon: 'bluetooth' },
   { id: 'screen', label: 'Screen', icon: 'screen' },
@@ -303,11 +308,216 @@ function ScreenTab() {
   )
 }
 
+// ------------------------------------------------------------------ camera families
+
+/** Video devices the computer already sees whose name matches, with one-click add. */
+function Detected(props: { match: RegExp; what: string; mics?: boolean }) {
+  const { cams, mics, unlocked, refresh } = useDevices()
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const used = useStore((s) => [...s.sources.map((x) => x.detail), ...s.channels.map((x) => x.detail)])
+  const found = cams.filter((c) => props.match.test(c.label))
+  const foundMics = props.mics ? mics.filter((m) => props.match.test(m.label)) : []
+  const run = async (key: string, f: () => Promise<void>) => {
+    setBusy(key)
+    setError(null)
+    try {
+      await f()
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+  if (!mediaSupported()) return <p className="note bad">This browser cannot access cameras. Use Chrome, Edge or Safari over https.</p>
+  return (
+    <div className="detected">
+      {!unlocked ? (
+        <button className="btn" onClick={() => run('unlock', async () => (await unlockDevices(), await refresh()))} disabled={busy === 'unlock'}>
+          {busy === 'unlock' ? 'Waiting for permission…' : `Look for a connected ${props.what}`}
+        </button>
+      ) : (
+        <ul className="dev-list">
+          {found.map((c) => (
+            <li key={c.deviceId}>
+              <Icon name="cam" />
+              <span className="dev-name">{c.label}</span>
+              <button className="btn btn-sm" disabled={busy === c.deviceId} onClick={() => run(c.deviceId, () => addWebcam(c, '4k'))}>
+                {used.includes(c.label) ? 'Add again' : busy === c.deviceId ? 'Opening…' : 'Add camera'}
+              </button>
+            </li>
+          ))}
+          {foundMics.map((m) => (
+            <li key={m.deviceId}>
+              <Icon name="mic" />
+              <span className="dev-name">{m.label}</span>
+              <button className="btn btn-sm" disabled={used.includes(m.label) || busy === m.deviceId} onClick={() => run(m.deviceId, () => addMic(m))}>
+                {used.includes(m.label) ? 'In mixer' : 'Add mic'}
+              </button>
+            </li>
+          ))}
+          {!found.length && !foundMics.length && <li className="empty">No {props.what} found yet. Follow the steps above — the list updates by itself.</li>}
+        </ul>
+      )}
+      {error && <p className="note bad">{error}</p>}
+    </div>
+  )
+}
+
+const REMOTE_LABEL = { gopro: 'GoPro', sony: 'Sony' } as const
+
+/** Cameras paired over Bluetooth, with their card-recording state. */
+function RemoteList({ kind }: { kind: 'gopro' | 'sony' }) {
+  const remotes = useStore((s) => s.remotes.filter((r) => r.kind === kind))
+  const recording = useStore((s) => !!s.recordingSince)
+  if (!remotes.length) return null
+  return (
+    <ul className="dev-list">
+      {remotes.map((r) => (
+        <li key={r.id} className="remote">
+          <Icon name="bluetooth" />
+          <span className="dev-name">
+            {r.name}
+            <small>
+              <span className={`status status-${r.status === 'connected' ? 'live' : r.status}`}>{r.status}</span>
+              {r.battery !== undefined && ` · ${r.battery}% battery`}
+              {r.recording === true && ' · recording on card'}
+            </small>
+          </span>
+          <label className="inline" title={`Start and stop this ${REMOTE_LABEL[kind]} with Tally's REC`}>
+            With REC
+            <Switch label={`Record ${r.name} with Tally`} on={r.follow} onChange={(v) => store.set((s) => ({ remotes: s.remotes.map((x) => (x.id === r.id ? { ...x, follow: v } : x)) }))} />
+          </label>
+          {r.status === 'connected' ? (
+            <button className={`btn btn-sm ${r.recording ? 'btn-danger' : ''}`} onClick={() => void setRemoteRecording(r.id, !r.recording)}>
+              {r.recording ? 'Stop' : 'Record'}
+            </button>
+          ) : (
+            <button className="btn btn-sm" onClick={() => void reconnectRemote(r.id)}>
+              Reconnect
+            </button>
+          )}
+          {kind === 'sony' && r.status === 'connected' && (
+            <button className="btn btn-sm btn-ghost" onClick={() => void remotePhoto(r.id)}>
+              Photo
+            </button>
+          )}
+          <button className="icon-btn" aria-label={`Forget ${r.name}`} disabled={recording} onClick={() => forgetRemote(r.id)}>
+            <Icon name="trash" size={13} />
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function PairButton({ kind }: { kind: 'gopro' | 'sony' }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  if (!bleSupported()) {
+    return <p className="note">Recording on the camera needs Bluetooth in the browser: Chrome or Edge on a Mac, Windows PC, Chromebook or Android. Safari and Firefox don’t have it.</p>
+  }
+  return (
+    <>
+      <button
+        className="btn btn-primary"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true)
+          setError(null)
+          try {
+            await (kind === 'gopro' ? pairGoPro() : pairSony())
+          } catch (e) {
+            const err = e as DOMException
+            if (err.name !== 'NotFoundError') setError(err.message || String(e))
+          } finally {
+            setBusy(false)
+          }
+        }}
+      >
+        <Icon name="bluetooth" size={14} /> {busy ? 'Connecting…' : `Pair a ${REMOTE_LABEL[kind]}`}
+      </button>
+      {error && <p className="note bad">Couldn't connect: {error}. Check the camera is in pairing mode and close the {REMOTE_LABEL[kind]} phone app if it's connected.</p>}
+    </>
+  )
+}
+
+function IphoneTab() {
+  return (
+    <div className="tab-body">
+      <h4>On a Mac: Continuity Camera</h4>
+      <ol className="steps">
+        <li>iPhone on iOS 16 or later, Mac on macOS 13 or later, same Apple ID, Wi-Fi and Bluetooth on.</li>
+        <li>Mount the iPhone in landscape, screen locked, near the Mac (or plugged in with a cable).</li>
+        <li>It shows up as a camera called “iPhone Camera” — add it below. Its microphone appears too.</li>
+      </ol>
+      <Detected match={/iphone|continuity|desk view/i} what="iPhone" mics />
+
+      <h4>Anywhere: over Wi-Fi</h4>
+      <p className="lead">Works with any iPhone or iPad and any computer. Open the link on the iPhone in Safari. While Tally records, the iPhone also records its own full-quality file (saved to Files → Downloads).</p>
+      <PhoneTab />
+
+      <h4>With a cable on Windows</h4>
+      <p className="lead">Apps like Camo or EpocCam turn the iPhone into a USB webcam. Once installed, it appears in “USB & capture”.</p>
+    </div>
+  )
+}
+
+function GoProTab() {
+  return (
+    <div className="tab-body">
+      <h4>Picture into Tally</h4>
+      <ol className="steps">
+        <li>HERO8 or later: install the GoPro Webcam app on the computer (Mac or Windows) and connect the GoPro with its USB-C cable.</li>
+        <li>Start webcam mode from the app. The GoPro appears as “GoPro Webcam” (up to 1080p) — add it below.</li>
+        <li>For HDMI instead: HERO9–11 with the Media Mod, or HERO12–13 with the Media Mod, into any HDMI capture card (then use “USB & capture”).</li>
+      </ol>
+      <Detected match={/gopro/i} what="GoPro" />
+
+      <h4>Record on the GoPro's card</h4>
+      <p className="lead">
+        Pair HERO9 or later over Bluetooth and it records full quality to its own card whenever you press REC, with battery and recording state shown here. On the camera, open
+        Preferences → Connections → Connect Device → GoPro Quik to put it in pairing mode.
+      </p>
+      <PairButton kind="gopro" />
+      <RemoteList kind="gopro" />
+      <p className="hint">A GoPro in webcam mode can’t record to its card at the same time — use the card for the best quality, and webcam or HDMI for the live picture.</p>
+    </div>
+  )
+}
+
+function SonyTab() {
+  return (
+    <div className="tab-body">
+      <h4>Picture into Tally</h4>
+      <ol className="steps">
+        <li>USB streaming (a7 IV, a7S III, FX3, ZV series…): connect the camera’s USB-C port and choose “Live Stream (USB Streaming)” when it asks. It becomes a webcam and a microphone — add them below.</li>
+        <li>4K and 1080p need a 10 Gbps USB-C port and cable; on USB 2 the camera sends 720p.</li>
+        <li>Or use clean HDMI out into a capture card (turn off HDMI info display on the camera), then add it from “USB & capture”.</li>
+      </ol>
+      <Detected match={/sony|ilce|ilme|zv-|fx3|fx30|usb streaming/i} what="Sony camera" mics />
+
+      <h4>Start recording on the camera</h4>
+      <p className="lead">
+        Pair the camera over Bluetooth as a remote and it starts and stops recording to its card with REC. On the camera: Network → Bluetooth → Bluetooth Function On, then Bluetooth Rmt
+        Ctrl On, then Pairing.
+      </p>
+      <PairButton kind="sony" />
+      <RemoteList kind="sony" />
+      <p className="hint">
+        This uses the same Bluetooth commands as Sony’s RMT-P1BT remote, documented by the community; it’s confirmed on the a7 III and ZV-1F and should work on any model that supports
+        that remote, including the a7 IV.
+      </p>
+    </div>
+  )
+}
+
 function Connected() {
   const recording = useStore((s) => !!s.recordingSince)
   const sources = useStore((s) => s.sources)
   const channels = useStore((s) => s.channels)
   const accessories = useStore((s) => s.accessories)
+  const remotes = useStore((s) => s.remotes)
   return (
     <div className="dev-connected">
       <table className="tbl">
@@ -389,10 +599,32 @@ function Connected() {
               </td>
             </tr>
           ))}
-          {!sources.length && !channels.length && !accessories.length && (
+          {remotes.map((r) => (
+            <tr key={r.id}>
+              <td className="mono">—</td>
+              <td>
+                <b>{r.name}</b>
+                <small>Records on its own card{r.follow ? ' with REC' : ''}</small>
+              </td>
+              <td>{r.kind === 'gopro' ? 'GoPro' : 'Sony'} (card)</td>
+              <td>
+                <LinkBadge link="bluetooth" />
+              </td>
+              <td>
+                <span className={`status status-${r.status === 'connected' ? 'live' : r.status}`}>{r.recording ? 'recording' : r.status}</span>
+              </td>
+              <td className="num mono">{r.battery !== undefined ? `${r.battery}% batt.` : '—'}</td>
+              <td className="num">
+                <button className="icon-btn" aria-label={`Forget ${r.name}`} disabled={recording} onClick={() => forgetRemote(r.id)}>
+                  <Icon name="trash" size={13} />
+                </button>
+              </td>
+            </tr>
+          ))}
+          {!sources.length && !channels.length && !accessories.length && !remotes.length && (
             <tr>
               <td colSpan={7} className="empty-row">
-                Nothing connected yet. Add devices below, or load the demo.
+                Nothing connected yet. Add a camera or microphone below.
               </td>
             </tr>
           )}
@@ -420,6 +652,9 @@ export function DevicesSection() {
       </nav>
       <div className="tab-panel">
         {tab === 'usb' && <UsbTab />}
+        {tab === 'iphone' && <IphoneTab />}
+        {tab === 'gopro' && <GoProTab />}
+        {tab === 'sony' && <SonyTab />}
         {tab === 'phone' && <PhoneTab />}
         {tab === 'url' && <UrlTab />}
         {tab === 'bluetooth' && <BluetoothTab />}

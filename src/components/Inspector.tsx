@@ -7,13 +7,10 @@ import {
   ND_STEPS,
   WB_PRESETS,
   apertureStops,
-  exposureModel,
-  focusLabel,
   posOf,
   shutterAngle,
   shutterLabel,
   shutterStops,
-  subjectFocus,
   valueAt,
 } from '../engine/lens'
 import { sendToPhone } from '../engine/phone'
@@ -232,7 +229,7 @@ function CameraSection({ src }: { src: VideoSource }) {
           </div>
         </Row>
       )}
-      {src.kind !== 'demo' && <HwSummary src={src} />}
+      <HwSummary src={src} />
       {src.status !== 'live' && <p className="warn">{src.status === 'lost' ? 'Signal lost — waiting for the device to come back.' : 'Connecting…'}</p>}
       {src.tainted && <p className="warn">This network stream blocks capture (no CORS headers): it shows here but can't be recorded.</p>}
     </Section>
@@ -266,7 +263,7 @@ function HwSummary({ src }: { src: VideoSource }) {
 }
 
 function RecordSection({ src }: { src: VideoSource }) {
-  const hasRaw = src.kind !== 'demo' && src.kind !== 'url'
+  const hasRaw = src.kind !== 'url'
   return (
     <Section id="record" title="Recording" aside={<span className={`sec-meta ${src.rec.armed ? 'is-armed' : ''}`}>{src.rec.armed ? 'Armed' : 'Off'}</span>}>
       <Row label="Record this camera" hint="Armed cameras each write their own file when you press REC">
@@ -289,7 +286,7 @@ function RecordSection({ src }: { src: VideoSource }) {
           ? 'Full-resolution camera signal. Hardware settings (focus, shutter, white balance…) are baked in; digital adjustments are not.'
           : 'Records what you see here, including digital image adjustments and the lip-sync delay.'}
         {src.kind === 'phone' ? ' The phone also records its own full-quality copy.' : ''}
-        {!hasRaw ? ' Simulated and network cameras have no separate clean signal, so they always record processed.' : ''}
+        {!hasRaw ? ' Network cameras have no separate clean signal, so they always record processed.' : ''}
       </p>
     </Section>
   )
@@ -298,13 +295,11 @@ function RecordSection({ src }: { src: VideoSource }) {
 function LensSection({ src }: { src: VideoSource }) {
   const s = src.settings
   const hw = src.hw ?? {}
-  const sim = src.kind === 'demo'
-  const subject = sim ? subjectFocus(src) : undefined
-  const shown = s.autoFocus && subject !== undefined ? subject : s.focus
+  const shown = s.focus
   const ap = hw.aperture ? apertureStops(hw.aperture) : null
   const [storing, setStoring] = useState(false)
   useEffect(() => setStoring(false), [src.id])
-  const zoomKind = sim ? (src.ptz ? 'optical' : 'lens') : hw.zoom ? 'camera' : 'digital'
+  const zoomKind = hw.zoom ? 'camera' : 'digital'
   return (
     <Section id="lens" title={src.ptz || src.hw?.pan || src.hw?.tilt ? 'Lens & PTZ' : 'Lens & framing'}>
       <div className="ptz">
@@ -349,17 +344,12 @@ function LensSection({ src }: { src: VideoSource }) {
             stops={FOCUS_STOPS}
             pos={shown * FOCUS_MAX}
             onPos={(p) => set(src, { focus: p / FOCUS_MAX, autoFocus: false })}
-            readout={sim ? (s.autoFocus ? `AF · ${focusLabel(shown)}` : focusLabel(s.focus)) : s.autoFocus ? 'AF' : `${(hw.focus[0] + s.focus * (hw.focus[1] - hw.focus[0])).toFixed(2)} m`}
-            marker={subject !== undefined ? subject * FOCUS_MAX : undefined}
+            readout={s.autoFocus ? 'AF' : `${(hw.focus[0] + s.focus * (hw.focus[1] - hw.focus[0])).toFixed(2)} m`}
           />
         </>
-      ) : (
-        <p className="hint">No remote focus on this camera.</p>
-      )}
-      {ap ? (
+      ) : null}
+      {ap && (
         <LensRing label="Iris" stops={ap} pos={posOf(ap, s.aperture)} onPos={(p) => set(src, { aperture: Math.round(valueAt(ap, p) * 10) / 10 })} readout={`f/${s.aperture.toFixed(1)}`} />
-      ) : (
-        <p className="hint">Fixed iris (browsers don't expose aperture on webcams and phones).</p>
       )}
     </Section>
   )
@@ -369,14 +359,12 @@ function ExposureSection({ src }: { src: VideoSource }) {
   const s = src.settings
   const hw = src.hw ?? {}
   const fps = useStore((st) => st.fps)
-  const sim = src.kind === 'demo'
-  const exp = sim ? exposureModel(s, hw) : null
   const sh = hw.shutter ? shutterStops(hw.shutter) : null
   const isoStops = hw.iso ? ISO_STOPS.filter((x) => x.v >= hw.iso![0] && x.v <= hw.iso![1]) : null
   const angle = shutterAngle(s.shutter, hw.fps ?? fps)
   const manualAvailable = !!(sh || isoStops)
   return (
-    <Section id="exposure" title="Exposure" aside={exp ? <span className="sec-meta mono">ISO {exp.iso}</span> : undefined}>
+    <Section id="exposure" title="Exposure">
       {manualAvailable && (
         <Row label="Mode">
           <Seg
@@ -386,7 +374,7 @@ function ExposureSection({ src }: { src: VideoSource }) {
               { v: 'auto', label: 'Auto' },
               { v: 'manual', label: 'Manual' },
             ]}
-            onChange={(v) => set(src, v === 'auto' ? { autoExposure: true } : { autoExposure: false, iso: exp ? exp.iso : s.iso })}
+            onChange={(v) => set(src, v === 'auto' ? { autoExposure: true } : { autoExposure: false })}
           />
         </Row>
       )}
@@ -400,9 +388,9 @@ function ExposureSection({ src }: { src: VideoSource }) {
         <LensRing
           label="ISO"
           stops={isoStops}
-          pos={posOf(isoStops, s.autoExposure && exp ? exp.iso : s.iso)}
+          pos={posOf(isoStops, s.iso)}
           onPos={(p) => set(src, { iso: Math.round(valueAt(isoStops, Math.round(p))), autoExposure: false })}
-          readout={s.autoExposure ? `Auto · ${exp?.iso ?? '—'}` : String(s.iso)}
+          readout={s.autoExposure ? 'Auto' : String(s.iso)}
           detent
           disabled={s.autoExposure}
         />
@@ -423,8 +411,6 @@ function ExposureSection({ src }: { src: VideoSource }) {
         reset={0}
         id="ev"
       />
-      {exp && exp.ev > 1.2 && <p className="warn">Overexposed by {exp.ev.toFixed(1)} stops — close the iris, use ND or a faster shutter.</p>}
-      {exp && exp.ev < -1.2 && <p className="warn">Underexposed by {(-exp.ev).toFixed(1)} stops — open the iris, lower ND, slow the shutter or raise ISO.</p>}
     </Section>
   )
 }

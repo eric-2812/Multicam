@@ -17,12 +17,12 @@ export function newSource(p: Partial<VideoSource> & Pick<VideoSource, 'name' | '
   return {
     id: uid('cam'),
     ptz: false,
-    // Real cameras start on their own auto white balance; simulated lenses start at 5600 K.
-    settings: { ...DEFAULT_SETTINGS, autoWhiteBalance: p.kind !== 'demo' },
+    // Cameras start on their own auto white balance.
+    settings: { ...DEFAULT_SETTINGS, autoWhiteBalance: true },
     presets: [null, null, null, null, null, null],
     status: 'live',
     delay: 0,
-    rec: { armed: true, feed: p.kind === 'demo' || p.kind === 'url' ? 'processed' : 'clean' },
+    rec: { armed: true, feed: p.kind === 'url' ? 'processed' : 'clean' },
     number: 0,
     ...p,
   }
@@ -251,7 +251,6 @@ export function addUrlCamera(name: string, url: string) {
  */
 const hwTimers = new Map<string, { last: number; timer: number }>()
 export function applyHardware(src: VideoSource) {
-  if (src.kind === 'demo') return
   const t = hwTimers.get(src.id) ?? { last: 0, timer: 0 }
   hwTimers.set(src.id, t)
   clearTimeout(t.timer)
@@ -307,7 +306,6 @@ export function refreshCaps(id: string, track: MediaStreamTrack) {
 /** Switch a camera's resolution / frame rate. Simulated cameras just relabel. */
 export async function setMode(src: VideoSource, w: number, h: number, fps: number) {
   const hw = { ...src.hw, width: w, height: h, fps }
-  if (src.kind === 'demo') return updateSource(src.id, { hw })
   if (src.kind === 'phone') {
     sendToPhone(src.id, { type: 'hw', c: { width: w, height: h, frameRate: fps } })
     return updateSource(src.id, { hw })

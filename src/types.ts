@@ -1,9 +1,9 @@
 /** How a device reaches the control room. */
 export type Link = 'usb' | 'wifi' | 'bluetooth' | 'screen' | 'builtin' | 'network'
 
-export type SourceKind = 'demo' | 'webcam' | 'screen' | 'url' | 'phone'
+export type SourceKind = 'webcam' | 'screen' | 'url' | 'phone'
 
-/** Image adjustments. Optical on demo cameras, digital (or via track constraints) on real ones. */
+/** Camera settings: applied by the camera where it supports them, otherwise digitally. */
 export interface CamSettings {
   zoom: number // 1..4
   pan: number // -1..1
@@ -17,7 +17,7 @@ export interface CamSettings {
   shutter: number
   /** Exposure compensation, -2..2 EV. */
   exposure: number
-  /** Auto exposure: auto-ISO on simulated lenses, continuous AE on real cameras. */
+  /** Auto exposure (continuous AE on the camera). */
   autoExposure: boolean
   /** Manual ISO when auto exposure is off. */
   iso: number
@@ -80,9 +80,9 @@ export interface PtzPreset {
 /** What the camera lets us drive. Each lens ring only appears when its entry is present. */
 export interface HwCaps {
   zoom?: [number, number]
-  /** Manual focus; hardware focusDistance range (simulated lenses use [0, 1]). */
+  /** Manual focus: the camera's focusDistance range. */
   focus?: [number, number]
-  /** Iris range as f-numbers. Browsers never expose this for real webcams, so demo lenses only. */
+  /** Iris range as f-numbers, when a camera reports one. */
   aperture?: [number, number]
   /** Shutter range as 1/x seconds (slowest, fastest). */
   shutter?: [number, number]
@@ -118,9 +118,7 @@ export interface VideoSource {
   link: Link
   /** Model / origin shown under the name. */
   detail: string
-  /** Demo scene id, for kind === 'demo'. */
-  scene?: string
-  /** Optical pan/tilt head (demo) — real sources get digital pan inside the zoomed crop. */
+  /** Motorised pan/tilt head. */
   ptz: boolean
   settings: CamSettings
   presets: (PtzPreset | null)[]
@@ -144,17 +142,15 @@ export interface VideoSource {
   clock?: { offset: number; rtt: number }
 }
 
-export type LatencyKind = 'measured' | 'estimated' | 'simulated'
+export type LatencyKind = 'measured' | 'estimated'
 
-export type Voice = 'host' | 'guest' | 'music' | 'room' | 'crowd'
 
 export interface AudioChannel {
   id: string
   name: string
   link: Link
   detail: string
-  kind: 'demo' | 'mic' | 'phone' | 'screen'
-  voice?: Voice
+  kind: 'mic' | 'phone' | 'screen'
   gain: number // fader 0..1.5 (1 = unity)
   pan: number // -1..1
   muted: boolean
@@ -217,6 +213,19 @@ export interface Accessory {
   battery?: number
   link: Link
   status: 'connected' | 'lost'
+}
+
+/** A camera controlled over Bluetooth so it records on its own card. */
+export interface RemoteCam {
+  id: string
+  kind: 'gopro' | 'sony'
+  name: string
+  status: 'connecting' | 'connected' | 'lost'
+  battery?: number
+  /** Last known recording state reported by the camera (null = not reported yet). */
+  recording: boolean | null
+  /** Start and stop together with Tally's REC. */
+  follow: boolean
 }
 
 export interface Toast {

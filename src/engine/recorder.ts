@@ -1,6 +1,7 @@
 import { store, toast, type Take, type TakeFile } from '../store'
 import type { VideoSource } from '../types'
 import { audio } from './audio'
+import { recordRemotes } from './bluecams'
 import { nowMs, runTC, todTC } from './timecode'
 import { download, video } from './video'
 
@@ -182,10 +183,12 @@ class Recorder {
         const mime = pickMime(cfg.format, 'av')
         await this.addTrack(new MediaStream(tracks), `${base}_PGM_${tc}.${extOf(mime, false)}`, mime, 'program', bitrate)
       }
-      if (!this.tracks.length) throw new Error('Nothing to record — arm at least one camera or enable microphones.')
+      const followers = st.remotes.filter((r) => r.follow && r.status === 'connected')
+      if (!this.tracks.length && !followers.length) throw new Error('Nothing to record — arm a camera, turn on microphone recording, or pair a GoPro / Sony.')
 
       // Start everything back to back so all files share the same first frame.
       this.tracks.forEach((t) => t.rec.start(1000))
+      const onCard = recordRemotes(true)
       this.startMs = startMs
       this.log = []
       this.lastProgram = st.program
@@ -205,6 +208,7 @@ class Recorder {
         files: this.tracks.map((t) => t.file),
         markers: 0,
         dest: this.dir ? `${folder!.name}/${base}` : 'Downloads',
+        onCard,
       }
       if (cfg.phoneLocal) window.dispatchEvent(new CustomEvent('tally-rec', { detail: { on: true, take: base, startMs } }))
       store.set((s) => ({ recordingSince: startMs, takes: [this.take!, ...s.takes] }))
@@ -247,6 +251,7 @@ class Recorder {
     const end = nowMs()
     this.unsub?.()
     this.tracks.forEach((t) => t.rec.state !== 'inactive' && t.rec.stop())
+    recordRemotes(false)
     window.dispatchEvent(new CustomEvent('tally-rec', { detail: { on: false } }))
     store.set({ recordingSince: null })
     await Promise.all(this.tracks.map((t) => t.done))
@@ -304,6 +309,7 @@ class Recorder {
           settings: s.settings,
           file: take.files.find((f) => f.name.includes(`_C${s.number}_`))?.name,
         })),
+      onCameraCards: take.onCard.map((name) => ({ camera: name, note: 'Recorded on the camera’s own card; started with this take (Bluetooth adds ~0.1–0.5 s). Line up with the slate.' })),
       microphones: st.channels.map((c, i) => ({ track: `A${i + 1}`, name: c.name, link: c.link, latencyMs: c.latency ?? null, syncDelayMs: c.delay })),
       events: this.log.map((e) => ({ ...e, recordTC: runTC(e.ms - this.startMs, st.fps), timeOfDay: todTC(e.ms, st.fps) })),
       files: take.files,

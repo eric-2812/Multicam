@@ -1,9 +1,7 @@
-import { createVoice } from '../demo/voices'
 import type { State } from '../store'
-import type { AudioChannel } from '../types'
 
 interface Strip {
-  /** Simulated path latency (demo) + lip-sync compensation. */
+  /** Lip-sync compensation. */
   delay: DelayNode
   trim: GainNode
   hpf: BiquadFilterNode
@@ -21,7 +19,6 @@ interface Strip {
   analyser: AnalyserNode
   buf: Float32Array<ArrayBuffer>
   source?: MediaStreamAudioSourceNode
-  stop?: () => void
   tap?: MediaStreamAudioDestinationNode
 }
 
@@ -124,12 +121,6 @@ class AudioEngine {
     return s
   }
 
-  addDemo(ch: AudioChannel) {
-    if (this.strips.has(ch.id) || !ch.voice) return
-    const s = this.strip(ch.id)
-    s.stop = createVoice(this.ctx!, ch.voice, s.delay).stop
-  }
-
   addStream(id: string, stream: MediaStream) {
     if (this.strips.has(id)) this.remove(id)
     const s = this.strip(id)
@@ -140,7 +131,6 @@ class AudioEngine {
   remove(id: string) {
     const s = this.strips.get(id)
     if (!s) return
-    s.stop?.()
     s.source?.disconnect()
     s.panner.disconnect()
     this.strips.delete(id)
@@ -157,7 +147,7 @@ class AudioEngine {
       const audible = !ch.muted && (!anySolo || ch.solo)
       s.fader.gain.setTargetAtTime(audible ? ch.gain * ch.gain : 0, now, 0.02)
       s.panner.pan.setTargetAtTime(ch.pan, now, 0.02)
-      const d = ((ch.latencyKind === 'simulated' ? (ch.latency ?? 0) : 0) + ch.delay) / 1000
+      const d = ch.delay / 1000
       if (Math.abs(s.delay.delayTime.value - d) > 0.0005) s.delay.delayTime.setTargetAtTime(d, now, 0.03)
       const fx = ch.fx
       const dB = (v: number) => Math.pow(10, v / 20)

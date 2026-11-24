@@ -1,9 +1,6 @@
-import { SCENES, WORLD_H, WORLD_W } from '../demo/scenes'
 import { store, toast, type State } from '../store'
 import type { VideoSource } from '../types'
 import { audio } from './audio'
-import { setSceneTime } from '../demo/voices'
-import { exposureModel, subjectFocus } from './lens'
 import { masterTC, nowMs, stamp } from './timecode'
 
 export const FRAME_W = 960
@@ -110,39 +107,6 @@ function makeCanvas(w: number, h: number) {
   return c
 }
 
-/**
- * Canvas has no sharpen filter, so a few SVG convolution filters are added to the page once and
- * referenced from ctx.filter. Quantised to 5 strengths.
- */
-const sharpenIds = new Map<number, string>()
-function sharpenFilter(amount: number) {
-  const level = Math.max(1, Math.min(5, Math.round(((amount - 0.5) / 0.5) * 5)))
-  let id = sharpenIds.get(level)
-  if (id) return id
-  id = `tally-sharpen-${level}`
-  const k = level * 0.35
-  const ns = 'http://www.w3.org/2000/svg'
-  let svg = document.getElementById('tally-filters') as SVGSVGElement | null
-  if (!svg) {
-    svg = document.createElementNS(ns, 'svg')
-    svg.id = 'tally-filters'
-    svg.setAttribute('width', '0')
-    svg.setAttribute('height', '0')
-    svg.style.position = 'absolute'
-    document.body.appendChild(svg)
-  }
-  const f = document.createElementNS(ns, 'filter')
-  f.id = id
-  const m = document.createElementNS(ns, 'feConvolveMatrix')
-  m.setAttribute('order', '3')
-  m.setAttribute('preserveAlpha', 'true')
-  m.setAttribute('kernelMatrix', `0 ${-k} 0 ${-k} ${1 + 4 * k} ${-k} 0 ${-k} 0`)
-  f.appendChild(m)
-  svg.appendChild(f)
-  sharpenIds.set(level, id)
-  return id
-}
-
 let scratchCanvas: HTMLCanvasElement | null = null
 function scratch() {
   if (!scratchCanvas) {
@@ -151,24 +115,6 @@ function scratch() {
     scratchCanvas.height = FRAME_H
   }
   return scratchCanvas
-}
-
-let grainCanvas: HTMLCanvasElement | null = null
-function grain() {
-  if (!grainCanvas) {
-    grainCanvas = document.createElement('canvas')
-    grainCanvas.width = 512
-    grainCanvas.height = 288
-    const g = grainCanvas.getContext('2d')!
-    const img = g.createImageData(512, 288)
-    for (let i = 0; i < img.data.length; i += 4) {
-      const v = Math.random() * 255
-      img.data[i] = img.data[i + 1] = img.data[i + 2] = v
-      img.data[i + 3] = 255
-    }
-    g.putImageData(img, 0, 0)
-  }
-  return grainCanvas
 }
 
 class VideoEngine {
@@ -329,27 +275,13 @@ class VideoEngine {
       bars(ctx, W, H, src.status === 'lost' ? 'SIGNAL LOST' : 'CONNECTING…', t, src.status === 'lost')
       return
     }
-    const sim = src.kind === 'demo'
-
     // 1. Raw picture into the shared scratch canvas, with no per-draw filters (much faster).
     const sc = scratch()
     const sx = sc.getContext('2d')!
     sx.setTransform(1, 0, 0, 1, 0, 0)
     sx.fillStyle = '#000'
     sx.fillRect(0, 0, W, H)
-    if (sim && src.scene) {
-      const k = (W / WORLD_W) * s.zoom
-      const panRange = src.ptz ? 520 : (WORLD_W / 2) * (1 - 1 / s.zoom)
-      const tiltRange = src.ptz ? 300 : (WORLD_H / 2) * (1 - 1 / s.zoom)
-      sx.translate(W / 2, H / 2)
-      sx.scale(k, k)
-      sx.translate(-(WORLD_W / 2 + s.pan * panRange), -(WORLD_H / 2 + s.tilt * tiltRange))
-      // A simulated device shows the world as it was `latency` ms ago, plus any sync delay.
-      const lag = (src.latencyKind === 'simulated' ? (src.latency ?? 0) : 0) + src.delay
-      setSceneTime(performance.now() - lag)
-      SCENES[src.scene]?.(sx, t - lag / 1000)
-      sx.setTransform(1, 0, 0, 1, 0, 0)
-    } else if (rt.media) {
+    if (rt.media) {
       const [vw, vh] = mediaSize(rt.media)
       if (!vw || !vh) {
         bars(ctx, W, H, 'WAITING FOR VIDEO…', t, false)
@@ -360,7 +292,7 @@ class VideoEngine {
 
     // Sync delay for real sources: show the frame from `delay` ms ago.
     let pic: HTMLCanvasElement = sc
-    if (!sim && src.delay > 0) {
+    if (src.delay > 0) {
       rt.history ??= new FrameDelay()
       const now = performance.now()
       rt.history.push(sc, now)
@@ -374,33 +306,8 @@ class VideoEngine {
       rt.lastZoom = s.zoom
       if (s.autoFocus) rt.huntUntil = t + 0.45
     }
-    const hunt = sim && s.autoFocus && t < rt.huntUntil ? Math.sin(((rt.huntUntil - t) / 0.45) * Math.PI) * 4 : 0
-    // Simulated lenses do everything here; real cameras only get the digital controls they lack in hardware.
-    const app = (c: 'focus' | 'aperture' | 'shutter' | 'wb' | 'ev' | 'sharpness') => sim || (c === 'wb' ? !src.hw?.wb : c === 'ev' ? !src.hw?.ev : false)
-    let blur = hunt
-    let ev: number
-    let iso = 0
-    let trail = 1
-    if (sim) {
-      const exp = exposureModel(s, { aperture: [1.4, 16], shutter: [15, 8000], nd: true })
-      ev = exp.ev
-      iso = exp.isoStops
-    } else {
-      ev = app('ev') ? s.exposure : 0
-    }
-    // Depth of field: the further the ring is from the subject, and the wider the iris, the softer.
-    if (app('focus') && !s.autoFocus) {
-      const target = sim ? subjectFocus(src) : 0.5
-      blur = Math.min(14, Math.abs(s.focus - target) * 34 * (2.8 / s.aperture))
-    }
-    // Slow shutters smear motion: blend over the previous frame.
-    if (app('shutter')) trail = Math.min(1, 0.2 + (0.8 * s.shutter) / 125)
-    // Digital sharpness: unsharp kernel above 50 %, slight softening below.
-    let sharpen = ''
-    if (app('sharpness')) {
-      if (s.sharpness > 0.55) sharpen = `url(#${sharpenFilter(s.sharpness)})`
-      else if (s.sharpness < 0.45) blur = Math.max(blur, (0.45 - s.sharpness) * 3)
-    }
+    // Exposure compensation and white balance are done here when the camera can't do them itself.
+    const ev = src.hw?.ev ? 0 : s.exposure
     const prof = PROFILES[s.profile]
     const bright = Math.pow(2, ev * 0.7) * prof.b
     const contrast = s.contrast * prof.c
@@ -410,15 +317,9 @@ class VideoEngine {
     if (Math.abs(contrast - 1) > 0.005) parts.push(`contrast(${contrast.toFixed(3)})`)
     if (s.profile === 'mono') parts.push('grayscale(1)')
     else if (Math.abs(sat - 1) > 0.005) parts.push(`saturate(${sat.toFixed(3)})`)
-    if (blur > 0.25) parts.push(`blur(${blur.toFixed(2)}px)`)
-    if (sharpen && blur <= 0.25) parts.push(sharpen)
 
     ctx.save()
-    if (rt.fresh) {
-      trail = 1
-      rt.fresh = false
-    }
-    ctx.globalAlpha = trail
+    rt.fresh = false
     ctx.filter = parts.length ? parts.join(' ') : 'none'
     if (s.mirror) {
       ctx.translate(W, 0)
@@ -433,17 +334,14 @@ class VideoEngine {
       const q = s.rotate % 180 !== 0
       const k = q ? H / W : 1
       ctx.drawImage(pic, (-W / 2) * k, (-H / 2) * k, W * k, H * k)
-    } else if (blur > 0.25) {
-      // Blur samples beyond the edge; overscan slightly so the border doesn't go dark.
-      ctx.drawImage(pic, -blur * 2, -blur * 2, W + blur * 4, H + blur * 4)
     } else {
       ctx.drawImage(pic, 0, 0)
     }
     ctx.restore()
 
     // White balance: a higher Kelvin setting gives a warmer picture. Cameras with their own
-    // white balance do it in hardware; auto WB on a simulated lens is neutral.
-    const digitalWb = app('wb') && !s.autoWhiteBalance
+    // white balance do it in hardware.
+    const digitalWb = !src.hw?.wb && !s.autoWhiteBalance
     const wb = digitalWb ? Math.max(-1, Math.min(1, (s.whiteBalance - 5600) / 2000)) : 0
     if (Math.abs(wb) > 0.04 && s.profile !== 'mono') {
       ctx.save()
@@ -461,23 +359,6 @@ class VideoEngine {
       ctx.fillRect(0, 0, W, H)
       ctx.restore()
     }
-    if (app('aperture') && s.aperture < 2.4) {
-      // Wide-open vignetting.
-      const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.62)
-      v.addColorStop(0, 'rgba(0,0,0,0)')
-      v.addColorStop(1, `rgba(0,0,0,${Math.min(0.55, (2.4 - s.aperture) * 0.55)})`)
-      ctx.fillStyle = v
-      ctx.fillRect(0, 0, W, H)
-    }
-    if (iso > 1.5) {
-      // High ISO grain.
-      ctx.save()
-      ctx.globalAlpha = Math.min(0.32, (iso - 1.5) * 0.06)
-      ctx.globalCompositeOperation = 'overlay'
-      const g = grain()
-      ctx.drawImage(g, -Math.random() * 64, -Math.random() * 64, W + 128, H + 128)
-      ctx.restore()
-    }
     // Sync slate: every camera flashes white on the same frame (visible in program and ISOs).
     if (performance.now() < this.slateUntil) {
       ctx.fillStyle = '#fff'
@@ -488,7 +369,7 @@ class VideoEngine {
   private pushMeasuredLatency(st: State) {
     for (const src of st.sources) {
       const m = this.runtimes.get(src.id)?.measured
-      if (m === undefined || src.latencyKind === 'simulated') continue
+      if (m === undefined) continue
       const ms = Math.round(m / 5) * 5
       if (src.latencyKind !== 'measured' || Math.abs((src.latency ?? 0) - ms) >= 10) {
         store.set((s) => ({ sources: s.sources.map((x) => (x.id === src.id ? { ...x, latency: ms, latencyKind: 'measured' } : x)) }))

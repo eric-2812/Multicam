@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { loadDemo, unloadDemo } from '../demo/demo'
 import { recorder } from '../engine/recorder'
 import { masterTC, nowMs, runTC } from '../engine/timecode'
 import { video } from '../engine/video'
@@ -45,6 +44,7 @@ function Timecode() {
 function RecButton() {
   const since = useStore((s) => s.recordingSince)
   const armed = useStore((s) => s.sources.filter((x) => x.rec.armed && x.status === 'live').length)
+  const onCard = useStore((s) => s.remotes.filter((r) => r.follow && r.status === 'connected').length)
   const fps = useStore((s) => s.fps)
   useTick(500)
   const toggle = () => (since ? void recorder.stop() : void recorder.start())
@@ -52,7 +52,7 @@ function RecButton() {
     <button className={`rec ${since ? 'is-rec' : ''}`} onClick={toggle} aria-pressed={!!since} title={since ? 'Stop recording (R)' : 'Record every armed camera and mic (R)'}>
       <span className="rec-dot" aria-hidden />
       <span className="rec-label">{since ? 'STOP' : 'REC'}</span>
-      <span className="rec-meta">{since ? `${runTC(nowMs() - since, fps)} · ${fmtBytes(recorder.totalBytes())}` : `${armed} cam${armed === 1 ? '' : 's'} armed`}</span>
+      <span className="rec-meta">{since ? `${runTC(nowMs() - since, fps)} · ${fmtBytes(recorder.totalBytes())}` : `${armed} cam${armed === 1 ? '' : 's'} armed${onCard ? ` · ${onCard} on card` : ''}`}</span>
     </button>
   )
 }
@@ -107,7 +107,6 @@ function Header() {
 }
 
 function StatusBar() {
-  const demo = useStore((s) => s.demo)
   const cams = useStore((s) => s.sources.length)
   const live = useStore((s) => s.sources.filter((x) => x.status === 'live').length)
   const mics = useStore((s) => s.channels.length)
@@ -119,15 +118,6 @@ function StatusBar() {
   const fps = useFps()
   return (
     <footer className="status">
-      {demo ? (
-        <button className="st-demo" onClick={unloadDemo} title="Remove the simulated devices">
-          DEMO <span>Exit</span>
-        </button>
-      ) : (
-        <button className="st-link" onClick={loadDemo}>
-          Load demo
-        </button>
-      )}
       <span>
         {live}/{cams} cameras
       </span>

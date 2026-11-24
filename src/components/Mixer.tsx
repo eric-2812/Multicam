@@ -141,7 +141,7 @@ function Strip({ ch }: { ch: AudioChannel }) {
           ))}
         </select>
       </label>
-      {ch.kind !== 'demo' && (
+      {(
         <button className="strip-remove" onClick={() => removeChannel(ch.id)} aria-label={`Remove ${ch.name}`}>
           <Icon name="close" size={11} />
         </button>

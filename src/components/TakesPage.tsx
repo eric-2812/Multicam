@@ -55,6 +55,12 @@ export function TakesPage() {
                     <dt>Markers</dt>
                     <dd className="mono">{t.markers}</dd>
                   </div>
+                  {t.onCard.length > 0 && (
+                    <div>
+                      <dt>On camera cards</dt>
+                      <dd>{t.onCard.join(', ')}</dd>
+                    </div>
+                  )}
                   <div>
                     <dt>Saved to</dt>
                     <dd className="mono">{t.dest}</dd>

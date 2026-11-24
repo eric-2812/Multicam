@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { exposureModel, focusLabel, ND_LABEL, shutterLabel } from '../engine/lens'
+import { ND_LABEL, shutterLabel } from '../engine/lens'
 import { analyse, drawGuides, histogram } from '../engine/monitor'
 import { recorder } from '../engine/recorder'
 import { video } from '../engine/video'
@@ -176,15 +176,14 @@ function Osd({ src }: { src: VideoSource }) {
   const fps = useStore((s) => s.fps)
   const s = src.settings
   const hw = src.hw ?? {}
-  const exp = src.kind === 'demo' ? exposureModel(s, hw) : null
   const items: string[] = []
   if (hw.height) items.push(`${hw.width}×${hw.height}${hw.fps ? `p${hw.fps}` : ''}`)
   if (hw.aperture) items.push(`f/${s.aperture.toFixed(1)}`)
   if (hw.shutter) items.push(`${shutterLabel(s.shutter)} (${Math.round((360 * (hw.fps ?? fps)) / s.shutter)}°)`)
-  if (exp || hw.iso) items.push(`ISO ${exp ? exp.iso : s.iso}${s.autoExposure ? ' A' : ''}`)
+  if (hw.iso) items.push(s.autoExposure ? 'ISO auto' : `ISO ${s.iso}`)
   if (hw.nd) items.push(ND_LABEL[s.nd])
   items.push(s.autoWhiteBalance ? 'AWB' : `${s.whiteBalance}K`)
-  if (hw.focus) items.push(s.autoFocus ? 'AF' : `MF ${focusLabel(s.focus)}`)
+  if (hw.focus) items.push(s.autoFocus ? 'AF' : 'MF')
   if (s.zoom > 1.01) items.push(`${s.zoom.toFixed(1)}×`)
   return (
     <div className="osd">

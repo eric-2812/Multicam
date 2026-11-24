@@ -133,7 +133,7 @@ export function MicInspector() {
           Reset processing
         </button>
         <span className="grow" />
-        {ch.kind !== 'demo' && (
+        {(
           <button
             className="btn btn-sm btn-danger"
             disabled={recording}

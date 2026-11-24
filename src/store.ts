@@ -1,6 +1,6 @@
 import { useRef, useSyncExternalStore } from 'react'
 import type { Fps, TcMode } from './engine/timecode'
-import type { Accessory, AudioChannel, Toast, TransitionType, VideoSource } from './types'
+import type { Accessory, AudioChannel, RemoteCam, Toast, TransitionType, VideoSource } from './types'
 
 export interface LowerThird {
   on: boolean
@@ -11,7 +11,7 @@ export interface LowerThird {
 export type Page = 'live' | 'setup' | 'takes'
 export type SetupSection = 'project' | 'devices' | 'recording' | 'sync' | 'audio' | 'shortcuts'
 export type View = 'grid' | 'focus' | 'switch'
-export type AddTab = 'usb' | 'phone' | 'url' | 'bluetooth' | 'screen'
+export type AddTab = 'usb' | 'iphone' | 'gopro' | 'sony' | 'phone' | 'url' | 'bluetooth' | 'screen'
 export type Guides = 'off' | 'thirds' | 'safe' | 'center' | 'scope'
 
 export interface Monitoring {
@@ -55,11 +55,12 @@ export interface Take {
   files: TakeFile[]
   markers: number
   dest: string
+  /** Cameras told over Bluetooth to record on their own cards. */
+  onCard: string[]
 }
 
 export interface State {
   started: boolean
-  demo: boolean
   page: Page
   setupSection: SetupSection
   addTab: AddTab
@@ -73,6 +74,8 @@ export interface State {
   sources: VideoSource[]
   channels: AudioChannel[]
   accessories: Accessory[]
+  /** GoPro / Sony cameras paired over Bluetooth for on-camera recording. */
+  remotes: RemoteCam[]
   program: string | null
   preview: string | null
   /** Camera shown in the inspector and the focus view. */
@@ -103,7 +106,6 @@ export interface State {
 
 const initial: State = {
   started: false,
-  demo: false,
   page: 'live',
   setupSection: 'project',
   addTab: 'usb',
@@ -115,6 +117,7 @@ const initial: State = {
   sources: [],
   channels: [],
   accessories: [],
+  remotes: [],
   program: null,
   preview: null,
   selected: null,
