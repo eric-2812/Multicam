@@ -20,6 +20,8 @@ export function LensRing(props: {
   /** Mark showing where autofocus / the subject sits. */
   marker?: number
   accent?: string
+  /** Small badge after the label (where the control takes effect). */
+  tag?: React.ReactNode
 }) {
   const { stops, pos, onPos, detent, disabled } = props
   const max = stops.length - 1
@@ -30,7 +32,10 @@ export function LensRing(props: {
   return (
     <div className={`ring ${disabled ? 'is-disabled' : ''}`} style={props.accent ? ({ '--ring-accent': props.accent } as React.CSSProperties) : undefined}>
       <div className="ring-head">
-        <span>{props.label}</span>
+        <span>
+          {props.label}
+          {props.tag}
+        </span>
         <output>{props.readout}</output>
       </div>
       <div

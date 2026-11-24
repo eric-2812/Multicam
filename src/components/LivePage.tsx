@@ -38,7 +38,7 @@ export function Tile({ src, compact }: { src: VideoSource; compact?: boolean }) 
     return () => c.remove()
   }, [src.id])
 
-  const select = () => store.set((s) => ({ selected: src.id, preview: view === 'switch' && !program ? src.id : s.preview }))
+  const select = () => store.set((s) => ({ selected: src.id, inspect: 'camera', preview: view === 'switch' && !program ? src.id : s.preview }))
   const res = src.hw?.height ? `${src.hw.height >= 2160 ? '4K' : `${src.hw.height}p`}${src.hw.fps ?? ''}` : ''
   return (
     <div
@@ -430,7 +430,7 @@ export function LivePage() {
         {(
           [
             ['cams', 'grid', 'Cameras'],
-            ['camera', 'settings', 'Camera'],
+            ['camera', 'settings', 'Settings'],
             ['audio', 'wave', 'Audio'],
           ] as const
         ).map(([id, icon, label]) => (

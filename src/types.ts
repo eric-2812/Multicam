@@ -95,6 +95,11 @@ export interface HwCaps {
   sharpness?: [number, number]
   /** Simulated ND filter wheel. */
   nd?: boolean
+  /** Motorised / digital pan and tilt reported by the camera (needs PTZ permission in Chrome). */
+  pan?: [number, number]
+  tilt?: [number, number]
+  /** Everything the camera reported, for the generic hardware controls. */
+  raw?: { caps: Record<string, RawCap>; settings: Record<string, unknown> }
   /** Resolutions / frame rates the camera can be switched to. */
   modes?: { w: number; h: number; fps: number[] }[]
   torch?: boolean
@@ -102,6 +107,9 @@ export interface HwCaps {
   height?: number
   fps?: number
 }
+
+/** One capability as reported by MediaStreamTrack.getCapabilities(). */
+export type RawCap = { min: number; max: number; step?: number } | (string | boolean)[] | boolean
 
 export interface VideoSource {
   id: string
@@ -159,6 +167,45 @@ export interface AudioChannel {
   latencyKind?: LatencyKind
   /** Extra delay for lip sync (ms). */
   delay: number
+  fx: ChannelFx
+}
+
+/** Per-microphone processing, in signal order. */
+export interface ChannelFx {
+  /** Input trim, dB. */
+  trim: number
+  /** Polarity invert. */
+  phase: boolean
+  hpf: boolean
+  hpfFreq: number
+  /** EQ gains in dB; mid is a bell at midFreq. */
+  eqLow: number
+  eqMid: number
+  eqMidFreq: number
+  eqHigh: number
+  comp: boolean
+  /** dBFS */
+  compThreshold: number
+  compRatio: number
+  gate: boolean
+  /** dBFS */
+  gateThreshold: number
+}
+
+export const DEFAULT_FX: ChannelFx = {
+  trim: 0,
+  phase: false,
+  hpf: false,
+  hpfFreq: 80,
+  eqLow: 0,
+  eqMid: 0,
+  eqMidFreq: 1000,
+  eqHigh: 0,
+  comp: false,
+  compThreshold: -18,
+  compRatio: 3,
+  gate: false,
+  gateThreshold: -50,
 }
 
 export type TransitionType = 'mix' | 'dip' | 'wipe' | 'push'

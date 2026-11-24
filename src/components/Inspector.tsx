@@ -20,10 +20,12 @@ import { sendToPhone } from '../engine/phone'
 import { store, toast, updateSettings, updateSource, useStore } from '../store'
 import { DEFAULT_SETTINGS, type CamSettings, type Profile, type VideoSource } from '../types'
 import { Battery, Icon, LINK_LABEL, Signal } from './Icon'
+import { HardwareSection, extraKeys } from './HardwareControls'
 import { LensRing } from './LensRing'
+import { MicInspector } from './MicInspector'
 import { Row, Section, Seg, Slide, Switch } from './ui'
 
-const HW_KEYS: (keyof CamSettings)[] = ['zoom', 'torch', 'focus', 'autoFocus', 'shutter', 'iso', 'autoExposure', 'exposure', 'whiteBalance', 'autoWhiteBalance', 'sharpness']
+const HW_KEYS: (keyof CamSettings)[] = ['zoom', 'pan', 'tilt', 'torch', 'focus', 'autoFocus', 'shutter', 'iso', 'autoExposure', 'exposure', 'whiteBalance', 'autoWhiteBalance', 'sharpness']
 
 function set(src: VideoSource, patch: Partial<CamSettings>) {
   updateSettings(src.id, patch)
@@ -68,6 +70,8 @@ function PtzPad({ src }: { src: VideoSource }) {
     const pan = Math.max(-1, Math.min(1, s.settings.pan + vel.current.x * k))
     const tilt = Math.max(-1, Math.min(1, s.settings.tilt + vel.current.y * k))
     updateSettings(s.id, { pan, tilt })
+    // Motorised heads follow the joystick in hardware.
+    if (s.hw?.pan || s.hw?.tilt) applyHardware({ ...s, settings: { ...s.settings, pan, tilt } })
     raf.current = requestAnimationFrame(loop)
   }
 
@@ -92,7 +96,7 @@ function PtzPad({ src }: { src: VideoSource }) {
 
   const nudge = (dx: number, dy: number) => {
     const s = srcRef.current.settings
-    updateSettings(src.id, { pan: Math.max(-1, Math.min(1, s.pan + dx)), tilt: Math.max(-1, Math.min(1, s.tilt + dy)) })
+    set(srcRef.current, { pan: Math.max(-1, Math.min(1, s.pan + dx)), tilt: Math.max(-1, Math.min(1, s.tilt + dy)) })
   }
 
   return (
@@ -228,9 +232,36 @@ function CameraSection({ src }: { src: VideoSource }) {
           </div>
         </Row>
       )}
+      {src.kind !== 'demo' && <HwSummary src={src} />}
       {src.status !== 'live' && <p className="warn">{src.status === 'lost' ? 'Signal lost — waiting for the device to come back.' : 'Connecting…'}</p>}
       {src.tainted && <p className="warn">This network stream blocks capture (no CORS headers): it shows here but can't be recorded.</p>}
     </Section>
+  )
+}
+
+/** What the camera told us it can do, so missing controls are explained rather than just absent. */
+function HwSummary({ src }: { src: VideoSource }) {
+  const hw = src.hw ?? {}
+  const names: string[] = []
+  if (hw.zoom) names.push('zoom')
+  if (hw.pan || hw.tilt) names.push('pan/tilt')
+  if (hw.focus) names.push('focus')
+  if (hw.shutter) names.push('shutter')
+  if (hw.iso) names.push('ISO')
+  if (hw.ev) names.push('exposure comp.')
+  if (hw.wb) names.push('white balance')
+  if (hw.sharpness) names.push('sharpness')
+  if (hw.torch) names.push('torch')
+  const extra = extraKeys(src).length
+  if (!hw.raw) {
+    return <p className="hint">This browser doesn't report camera controls. Chrome or Edge show every setting the camera supports.</p>
+  }
+  return (
+    <Row label="Camera controls">
+      <span className="ro-wrap">
+        {names.length || extra ? `${[...names, extra ? `${extra} more below` : ''].filter(Boolean).join(', ')}` : 'None reported by this camera'}
+      </span>
+    </Row>
   )
 }
 
@@ -273,9 +304,9 @@ function LensSection({ src }: { src: VideoSource }) {
   const ap = hw.aperture ? apertureStops(hw.aperture) : null
   const [storing, setStoring] = useState(false)
   useEffect(() => setStoring(false), [src.id])
-  const zoomKind = sim ? (src.ptz ? 'optical' : 'lens') : hw.zoom ? 'hardware' : 'digital'
+  const zoomKind = sim ? (src.ptz ? 'optical' : 'lens') : hw.zoom ? 'camera' : 'digital'
   return (
-    <Section id="lens" title={src.ptz ? 'Lens & PTZ' : 'Lens & framing'}>
+    <Section id="lens" title={src.ptz || src.hw?.pan || src.hw?.tilt ? 'Lens & PTZ' : 'Lens & framing'}>
       <div className="ptz">
         <PtzPad src={src} />
         <div className="ptz-side">
@@ -283,7 +314,7 @@ function LensSection({ src }: { src: VideoSource }) {
           <button className="btn btn-sm" onClick={() => recall(src, { zoom: 1, pan: 0, tilt: 0 })}>
             Home
           </button>
-          {!src.ptz && s.zoom <= 1.01 && <p className="hint">Zoom in to reframe inside the picture.</p>}
+          {!src.ptz && !hw.pan && !hw.tilt && s.zoom <= 1.01 && <p className="hint">Zoom in to reframe inside the picture.</p>}
         </div>
       </div>
       <div className="presets" role="group" aria-label="Presets">
@@ -464,7 +495,7 @@ function ColorSection({ src }: { src: VideoSource }) {
   )
 }
 
-export function Inspector() {
+function CameraInspector() {
   const src = useStore((s) => s.sources.find((x) => x.id === s.selected) ?? s.sources[0])
   const recording = useStore((s) => !!s.recordingSince)
   if (!src) {
@@ -476,34 +507,55 @@ export function Inspector() {
     )
   }
   return (
-    <div className="insp" key={src.id}>
-      <header className="insp-head">
+    <div className="insp-body" key={src.id}>
+      <div className="insp-cam">
         <span className="t-num">{src.number}</span>
-        <h2>{src.name}</h2>
-        <button className="icon-btn only-tablet" aria-label="Close camera settings" onClick={() => store.set({ inspectorOpen: false })}>
+        <b>{src.name}</b>
+      </div>
+      <CameraSection src={src} />
+      <RecordSection src={src} />
+      <LensSection src={src} />
+      <ExposureSection src={src} />
+      <ColorSection src={src} />
+      <HardwareSection src={src} />
+      <div className="insp-foot">
+        <button
+          className="btn btn-sm btn-danger"
+          disabled={recording}
+          title={recording ? 'Stop recording before removing a camera' : undefined}
+          onClick={() => {
+            removeSource(src.id)
+            toast(`${src.name} removed`, 'info')
+          }}
+        >
+          <Icon name="trash" size={13} /> Remove camera
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Settings for the selected camera or microphone. */
+export function Inspector() {
+  const mode = useStore((s) => s.inspect)
+  return (
+    <div className="insp">
+      <header className="insp-head">
+        <Seg
+          label="Settings for"
+          value={mode}
+          options={[
+            { v: 'camera', label: <><Icon name="cam" size={13} /> Camera</> },
+            { v: 'mic', label: <><Icon name="mic" size={13} /> Mic</> },
+          ]}
+          onChange={(v) => store.set({ inspect: v })}
+        />
+        <span className="grow" />
+        <button className="icon-btn only-tablet" aria-label="Close settings" onClick={() => store.set({ inspectorOpen: false })}>
           <Icon name="close" size={14} />
         </button>
       </header>
-      <div className="insp-body">
-        <CameraSection src={src} />
-        <RecordSection src={src} />
-        <LensSection src={src} />
-        <ExposureSection src={src} />
-        <ColorSection src={src} />
-        <div className="insp-foot">
-          <button
-            className="btn btn-sm btn-danger"
-            disabled={recording}
-            title={recording ? 'Stop recording before removing a camera' : undefined}
-            onClick={() => {
-              removeSource(src.id)
-              toast(`${src.name} removed`, 'info')
-            }}
-          >
-            <Icon name="trash" size={13} /> Remove camera
-          </button>
-        </div>
-      </div>
+      {mode === 'camera' ? <CameraInspector /> : <MicInspector />}
     </div>
   )
 }

@@ -5,6 +5,16 @@ import type { AudioChannel } from '../types'
 interface Strip {
   /** Simulated path latency (demo) + lip-sync compensation. */
   delay: DelayNode
+  trim: GainNode
+  hpf: BiquadFilterNode
+  low: BiquadFilterNode
+  mid: BiquadFilterNode
+  high: BiquadFilterNode
+  comp: DynamicsCompressorNode
+  /** Noise gate (driven from `gateMeter`). */
+  noiseGate: GainNode
+  gateMeter: AnalyserNode
+  gateBuf: Float32Array<ArrayBuffer>
   gate: GainNode
   fader: GainNode
   panner: StereoPannerNode
@@ -62,14 +72,54 @@ class AudioEngine {
   private strip(id: string): Strip {
     const ctx = this.ensure()
     const delay = ctx.createDelay(2)
+    const trim = ctx.createGain()
+    const hpf = ctx.createBiquadFilter()
+    hpf.type = 'highpass'
+    hpf.frequency.value = 10
+    const low = ctx.createBiquadFilter()
+    low.type = 'lowshelf'
+    low.frequency.value = 200
+    const mid = ctx.createBiquadFilter()
+    mid.type = 'peaking'
+    mid.Q.value = 1
+    const high = ctx.createBiquadFilter()
+    high.type = 'highshelf'
+    high.frequency.value = 6000
+    const comp = ctx.createDynamicsCompressor()
+    comp.threshold.value = 0
+    comp.ratio.value = 1
+    comp.attack.value = 0.005
+    comp.release.value = 0.15
+    const noiseGate = ctx.createGain()
+    const gateMeter = ctx.createAnalyser()
+    gateMeter.fftSize = 512
     const gate = ctx.createGain()
     const fader = ctx.createGain()
     const panner = ctx.createStereoPanner()
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 1024
-    delay.connect(gate).connect(fader).connect(panner).connect(this.master)
+    // delay → trim → low-cut → EQ → compressor → noise gate → AFV → fader → pan → master
+    delay.connect(trim).connect(hpf).connect(low).connect(mid).connect(high).connect(comp)
+    comp.connect(gateMeter)
+    comp.connect(noiseGate).connect(gate).connect(fader).connect(panner).connect(this.master)
     fader.connect(analyser)
-    const s: Strip = { delay, gate, fader, panner, analyser, buf: new Float32Array(1024) }
+    const s: Strip = {
+      delay,
+      trim,
+      hpf,
+      low,
+      mid,
+      high,
+      comp,
+      noiseGate,
+      gateMeter,
+      gateBuf: new Float32Array(512),
+      gate,
+      fader,
+      panner,
+      analyser,
+      buf: new Float32Array(1024),
+    }
     this.strips.set(id, s)
     return s
   }
@@ -109,6 +159,26 @@ class AudioEngine {
       s.panner.pan.setTargetAtTime(ch.pan, now, 0.02)
       const d = ((ch.latencyKind === 'simulated' ? (ch.latency ?? 0) : 0) + ch.delay) / 1000
       if (Math.abs(s.delay.delayTime.value - d) > 0.0005) s.delay.delayTime.setTargetAtTime(d, now, 0.03)
+      const fx = ch.fx
+      const dB = (v: number) => Math.pow(10, v / 20)
+      s.trim.gain.setTargetAtTime(dB(fx.trim) * (fx.phase ? -1 : 1), now, 0.02)
+      s.hpf.frequency.setTargetAtTime(fx.hpf ? fx.hpfFreq : 10, now, 0.02)
+      s.low.gain.setTargetAtTime(fx.eqLow, now, 0.02)
+      s.mid.gain.setTargetAtTime(fx.eqMid, now, 0.02)
+      s.mid.frequency.setTargetAtTime(fx.eqMidFreq, now, 0.02)
+      s.high.gain.setTargetAtTime(fx.eqHigh, now, 0.02)
+      s.comp.threshold.setTargetAtTime(fx.comp ? fx.compThreshold : 0, now, 0.02)
+      s.comp.ratio.setTargetAtTime(fx.comp ? fx.compRatio : 1, now, 0.02)
+      // Noise gate: open above the threshold, close (with a short hold via the time constant) below.
+      let gateOpen = true
+      if (fx.gate) {
+        s.gateMeter.getFloatTimeDomainData(s.gateBuf)
+        let sum = 0
+        for (let i = 0; i < s.gateBuf.length; i++) sum += s.gateBuf[i] * s.gateBuf[i]
+        const level = 20 * Math.log10(Math.sqrt(sum / s.gateBuf.length) + 1e-9)
+        gateOpen = level > fx.gateThreshold
+      }
+      s.noiseGate.gain.setTargetAtTime(gateOpen ? 1 : 0, now, gateOpen ? 0.005 : 0.12)
       const afvOpen = !ch.afv || st.program === ch.afv || (st.transitioning && st.preview === ch.afv)
       s.gate.gain.setTargetAtTime(afvOpen ? 1 : 0, now, afvOpen ? 0.05 : 0.15)
     }
@@ -118,15 +188,20 @@ class AudioEngine {
   }
 
   /**
-   * A channel's own signal (after sync delay, before fader/mute), for recording each mic
+   * A channel's own processed signal (delay, trim, EQ, dynamics — before fader/mute), for recording each mic
    * to its own file — the editor gets clean, separately adjustable tracks.
    */
   channelStream(id: string) {
     const s = this.strips.get(id)
     if (!s || !this.ctx) return null
     s.tap ??= this.ctx.createMediaStreamDestination()
-    s.delay.connect(s.tap)
+    s.noiseGate.connect(s.tap)
     return s.tap.stream
+  }
+
+  /** Compressor gain reduction in dB (≤ 0). */
+  reduction(id: string) {
+    return this.strips.get(id)?.comp.reduction ?? 0
   }
 
   /** Sync beep (1 kHz, 1 frame-ish) straight into the program mix, so it lands in every recording. */

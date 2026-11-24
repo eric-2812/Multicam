@@ -3063,3 +3063,58 @@ span.strip-name {
     animation: none !important;
   }
 }
+
+/* ---------------------------------------------------------------- settings panel additions */
+
+.insp-cam {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 4px;
+  font-size: 13px;
+}
+
+.insp-cam b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.mic-pick {
+  padding: 10px 12px 4px;
+}
+
+.strip-set {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 20px;
+  margin-top: 3px;
+  padding: 0 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: 10px;
+}
+
+.strip-set:hover {
+  color: var(--text);
+}
+
+.strip-set.is-on {
+  background: var(--text);
+  border-color: var(--text);
+  color: #09090b;
+}
+
+.row-l .tag-src {
+  margin-left: 6px;
+}
+
+.ro-wrap {
+  color: var(--text-2);
+  text-align: right;
+}

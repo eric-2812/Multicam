@@ -43,11 +43,12 @@ export function Section(props: { id: string; title: string; aside?: ReactNode; c
 }
 
 /** Label on the left, control on the right. */
-export function Row(props: { label: string; hint?: string; children: ReactNode; htmlFor?: string }) {
+export function Row(props: { label: string; hint?: string; children: ReactNode; htmlFor?: string; tag?: ReactNode }) {
   return (
     <div className="row-f">
       <label className="row-l" htmlFor={props.htmlFor} title={props.hint}>
         {props.label}
+        {props.tag}
       </label>
       <div className="row-c">{props.children}</div>
     </div>
@@ -101,11 +102,15 @@ export function Slide(props: {
   reset?: number
   disabled?: boolean
   id?: string
+  tag?: ReactNode
 }) {
   const id = props.id ?? `sl-${props.label.replace(/\W+/g, '-').toLowerCase()}`
   return (
     <div className={`slide ${props.disabled ? 'is-disabled' : ''}`}>
-      <label htmlFor={id}>{props.label}</label>
+      <label htmlFor={id}>
+        {props.label}
+        {props.tag}
+      </label>
       <input
         id={id}
         type="range"

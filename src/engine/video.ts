@@ -110,6 +110,39 @@ function makeCanvas(w: number, h: number) {
   return c
 }
 
+/**
+ * Canvas has no sharpen filter, so a few SVG convolution filters are added to the page once and
+ * referenced from ctx.filter. Quantised to 5 strengths.
+ */
+const sharpenIds = new Map<number, string>()
+function sharpenFilter(amount: number) {
+  const level = Math.max(1, Math.min(5, Math.round(((amount - 0.5) / 0.5) * 5)))
+  let id = sharpenIds.get(level)
+  if (id) return id
+  id = `tally-sharpen-${level}`
+  const k = level * 0.35
+  const ns = 'http://www.w3.org/2000/svg'
+  let svg = document.getElementById('tally-filters') as SVGSVGElement | null
+  if (!svg) {
+    svg = document.createElementNS(ns, 'svg')
+    svg.id = 'tally-filters'
+    svg.setAttribute('width', '0')
+    svg.setAttribute('height', '0')
+    svg.style.position = 'absolute'
+    document.body.appendChild(svg)
+  }
+  const f = document.createElementNS(ns, 'filter')
+  f.id = id
+  const m = document.createElementNS(ns, 'feConvolveMatrix')
+  m.setAttribute('order', '3')
+  m.setAttribute('preserveAlpha', 'true')
+  m.setAttribute('kernelMatrix', `0 ${-k} 0 ${-k} ${1 + 4 * k} ${-k} 0 ${-k} 0`)
+  f.appendChild(m)
+  svg.appendChild(f)
+  sharpenIds.set(level, id)
+  return id
+}
+
 let scratchCanvas: HTMLCanvasElement | null = null
 function scratch() {
   if (!scratchCanvas) {
@@ -342,21 +375,31 @@ class VideoEngine {
       if (s.autoFocus) rt.huntUntil = t + 0.45
     }
     const hunt = sim && s.autoFocus && t < rt.huntUntil ? Math.sin(((rt.huntUntil - t) / 0.45) * Math.PI) * 4 : 0
+    // Simulated lenses do everything here; real cameras only get the digital controls they lack in hardware.
+    const app = (c: 'focus' | 'aperture' | 'shutter' | 'wb' | 'ev' | 'sharpness') => sim || (c === 'wb' ? !src.hw?.wb : c === 'ev' ? !src.hw?.ev : false)
     let blur = hunt
-    let ev = s.exposure
+    let ev: number
     let iso = 0
     let trail = 1
     if (sim) {
-      const exp = exposureModel(s, src.hw)
+      const exp = exposureModel(s, { aperture: [1.4, 16], shutter: [15, 8000], nd: true })
       ev = exp.ev
       iso = exp.isoStops
-      // Depth of field: the further the ring is from the subject, and the wider the iris, the softer.
-      if (src.hw?.focus && !s.autoFocus) {
-        const dof = src.hw.aperture ? 2.8 / s.aperture : 0.8
-        blur = Math.min(14, Math.abs(s.focus - subjectFocus(src)) * 34 * dof)
-      }
-      // Slow shutters smear motion: blend over the previous frame.
-      if (src.hw?.shutter) trail = Math.min(1, 0.2 + (0.8 * s.shutter) / 125)
+    } else {
+      ev = app('ev') ? s.exposure : 0
+    }
+    // Depth of field: the further the ring is from the subject, and the wider the iris, the softer.
+    if (app('focus') && !s.autoFocus) {
+      const target = sim ? subjectFocus(src) : 0.5
+      blur = Math.min(14, Math.abs(s.focus - target) * 34 * (2.8 / s.aperture))
+    }
+    // Slow shutters smear motion: blend over the previous frame.
+    if (app('shutter')) trail = Math.min(1, 0.2 + (0.8 * s.shutter) / 125)
+    // Digital sharpness: unsharp kernel above 50 %, slight softening below.
+    let sharpen = ''
+    if (app('sharpness')) {
+      if (s.sharpness > 0.55) sharpen = `url(#${sharpenFilter(s.sharpness)})`
+      else if (s.sharpness < 0.45) blur = Math.max(blur, (0.45 - s.sharpness) * 3)
     }
     const prof = PROFILES[s.profile]
     const bright = Math.pow(2, ev * 0.7) * prof.b
@@ -368,6 +411,7 @@ class VideoEngine {
     if (s.profile === 'mono') parts.push('grayscale(1)')
     else if (Math.abs(sat - 1) > 0.005) parts.push(`saturate(${sat.toFixed(3)})`)
     if (blur > 0.25) parts.push(`blur(${blur.toFixed(2)}px)`)
+    if (sharpen && blur <= 0.25) parts.push(sharpen)
 
     ctx.save()
     if (rt.fresh) {
@@ -399,7 +443,7 @@ class VideoEngine {
 
     // White balance: a higher Kelvin setting gives a warmer picture. Cameras with their own
     // white balance do it in hardware; auto WB on a simulated lens is neutral.
-    const digitalWb = !src.hw?.wb && !(sim && s.autoWhiteBalance)
+    const digitalWb = app('wb') && !s.autoWhiteBalance
     const wb = digitalWb ? Math.max(-1, Math.min(1, (s.whiteBalance - 5600) / 2000)) : 0
     if (Math.abs(wb) > 0.04 && s.profile !== 'mono') {
       ctx.save()
@@ -417,7 +461,7 @@ class VideoEngine {
       ctx.fillRect(0, 0, W, H)
       ctx.restore()
     }
-    if (sim && src.hw?.aperture && s.aperture < 2.4) {
+    if (app('aperture') && s.aperture < 2.4) {
       // Wide-open vignetting.
       const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.62)
       v.addColorStop(0, 'rgba(0,0,0,0)')
@@ -481,8 +525,9 @@ class VideoEngine {
       cw = vw / dz
       chh = cw / outAspect
     }
-    const cx = (vw - cw) / 2 + (s.pan * (vw - cw)) / 2
-    const cy = (vh - chh) / 2 + (s.tilt * (vh - chh)) / 2
+    // A motorised head pans in hardware; otherwise pan/tilt move the crop.
+    const cx = (vw - cw) / 2 + ((src.hw?.pan ? 0 : s.pan) * (vw - cw)) / 2
+    const cy = (vh - chh) / 2 + ((src.hw?.tilt ? 0 : s.tilt) * (vh - chh)) / 2
     if (portraitish) {
       const scale = Math.min(W / cw, H / chh)
       const dw = cw * scale

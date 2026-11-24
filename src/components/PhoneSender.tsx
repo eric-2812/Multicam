@@ -9,7 +9,8 @@ type Facing = 'environment' | 'user'
 
 async function openCamera(facing: Facing, withAudio: boolean) {
   return navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+    // pan/tilt/zoom: true asks for PTZ access so the phone reports those controls too.
+    video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 }, pan: true, tilt: true, zoom: true } as MediaTrackConstraints,
     audio: withAudio ? { echoCancellation: false, noiseSuppression: true, autoGainControl: true } : false,
   })
 }
@@ -131,7 +132,11 @@ export function PhoneSender({ room }: { room: string }) {
         },
         hw: (m) => {
           const t = streamRef.current?.getVideoTracks()[0]
-          t?.applyConstraints({ advanced: [m.c as MediaTrackConstraintSet] }).catch(() => {})
+          if (!t) return
+          // Apply, then report back what the camera actually did.
+          t.applyConstraints({ advanced: [m.c as MediaTrackConstraintSet] })
+            .catch(() => {})
+            .then(() => sender.current?.sendCaps(capsOf(t), facingRef.current))
         },
       })
     } catch (e) {

@@ -1,5 +1,5 @@
 import { addChannel, addSource, store, toast, uid, updateSource } from '../store'
-import { DEFAULT_SETTINGS, type AudioChannel, type HwCaps, type Link, type VideoSource } from '../types'
+import { DEFAULT_FX, DEFAULT_SETTINGS, type RawCap, type AudioChannel, type HwCaps, type Link, type VideoSource } from '../types'
 import { audio } from './audio'
 import { sendToPhone } from './phone'
 import { video } from './video'
@@ -17,7 +17,8 @@ export function newSource(p: Partial<VideoSource> & Pick<VideoSource, 'name' | '
   return {
     id: uid('cam'),
     ptz: false,
-    settings: { ...DEFAULT_SETTINGS },
+    // Real cameras start on their own auto white balance; simulated lenses start at 5600 K.
+    settings: { ...DEFAULT_SETTINGS, autoWhiteBalance: p.kind !== 'demo' },
     presets: [null, null, null, null, null, null],
     status: 'live',
     delay: 0,
@@ -29,7 +30,7 @@ export function newSource(p: Partial<VideoSource> & Pick<VideoSource, 'name' | '
 
 
 export function newChannel(p: Partial<AudioChannel> & Pick<AudioChannel, 'name' | 'kind' | 'link' | 'detail'>): AudioChannel {
-  return { id: uid('mic'), gain: 1, pan: 0, muted: false, solo: false, afv: null, status: 'live', delay: 0, ...p }
+  return { id: uid('mic'), gain: 1, pan: 0, muted: false, solo: false, afv: null, status: 'live', delay: 0, fx: { ...DEFAULT_FX }, ...p }
 }
 
 export function mediaSupported() {
@@ -101,6 +102,16 @@ export function capsOf(track: MediaStreamTrack): HwCaps {
     hw.ev = [caps.exposureCompensation.min, caps.exposureCompensation.max]
   }
   if (caps.sharpness && caps.sharpness.max > caps.sharpness.min) hw.sharpness = [caps.sharpness.min, caps.sharpness.max]
+  const range = (r?: Range) => (r && r.max > r.min ? ([r.min, r.max] as [number, number]) : undefined)
+  hw.pan = range((caps as { pan?: Range }).pan)
+  hw.tilt = range((caps as { tilt?: Range }).tilt)
+  // Keep the full report (JSON-safe) so every setting the camera offers can be shown.
+  const raw: Record<string, RawCap> = {}
+  for (const [k, v] of Object.entries(caps)) {
+    if (Array.isArray(v) || typeof v === 'boolean') raw[k] = v as RawCap
+    else if (v && typeof v === 'object' && 'min' in v && 'max' in v) raw[k] = { min: (v as Range).min, max: (v as Range).max, step: (v as { step?: number }).step }
+  }
+  hw.raw = { caps: raw, settings: JSON.parse(JSON.stringify(set)) }
   if (caps.width?.max && caps.height?.max) {
     const maxFps = caps.frameRate?.max ?? 30
     const fps = STD_FPS.filter((f) => f <= maxFps + 0.5)
@@ -115,6 +126,8 @@ export function hwConstraints(src: VideoSource): Record<string, unknown> {
   const s = src.settings
   const c: Record<string, unknown> = {}
   if (hw.zoom) c.zoom = hw.zoom[0] + ((s.zoom - 1) / 3) * (hw.zoom[1] - hw.zoom[0])
+  if (hw.pan) c.pan = hw.pan[0] + ((s.pan + 1) / 2) * (hw.pan[1] - hw.pan[0])
+  if (hw.tilt) c.tilt = hw.tilt[0] + ((-s.tilt + 1) / 2) * (hw.tilt[1] - hw.tilt[0])
   if (hw.torch) c.torch = s.torch
   if (hw.focus) {
     if (s.autoFocus) c.focusMode = 'continuous'
@@ -150,12 +163,19 @@ function watchEnded(id: string, track: MediaStreamTrack, name: string) {
   })
 }
 
+/** Open a camera asking for PTZ access too — Chrome only reports pan / tilt / zoom when asked. */
+export async function openCameraStream(video: MediaTrackConstraints) {
+  try {
+    return await navigator.mediaDevices.getUserMedia({ video: { ...video, pan: true, tilt: true, zoom: true } as MediaTrackConstraints, audio: false })
+  } catch (e) {
+    if ((e as DOMException).name === 'NotAllowedError') throw e
+    return navigator.mediaDevices.getUserMedia({ video, audio: false })
+  }
+}
+
 export async function addWebcam(device: MediaDeviceInfo, quality: '720' | '1080' | '4k') {
   const h = quality === '4k' ? 2160 : quality === '1080' ? 1080 : 720
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { deviceId: { exact: device.deviceId }, height: { ideal: h }, width: { ideal: (h * 16) / 9 }, frameRate: { ideal: 30 } },
-    audio: false,
-  })
+  const stream = await openCameraStream({ deviceId: { exact: device.deviceId }, height: { ideal: h }, width: { ideal: (h * 16) / 9 }, frameRate: { ideal: 30 } })
   const track = stream.getVideoTracks()[0]
   const name = device.label || 'Camera'
   const link = guessLink(name)
@@ -225,8 +245,25 @@ export function addUrlCamera(name: string, url: string) {
 }
 
 /** Push hardware settings to a real camera (local track, or a phone over its data channel). */
+/**
+ * Cameras take a moment to apply constraints, and joystick / ring drags fire every frame, so
+ * hardware updates are throttled per camera (latest value always wins).
+ */
+const hwTimers = new Map<string, { last: number; timer: number }>()
 export function applyHardware(src: VideoSource) {
   if (src.kind === 'demo') return
+  const t = hwTimers.get(src.id) ?? { last: 0, timer: 0 }
+  hwTimers.set(src.id, t)
+  clearTimeout(t.timer)
+  const wait = Math.max(0, 90 - (performance.now() - t.last))
+  t.timer = window.setTimeout(() => {
+    t.last = performance.now()
+    const cur = store.get().sources.find((s) => s.id === src.id)
+    if (cur) applyNow(cur)
+  }, wait)
+}
+
+function applyNow(src: VideoSource) {
   const c = hwConstraints(src)
   if (!Object.keys(c).length) return
   if (src.kind === 'phone') {
@@ -234,7 +271,37 @@ export function applyHardware(src: VideoSource) {
     return
   }
   const track = video.getStream(src.id)?.getVideoTracks()[0]
-  track?.applyConstraints({ advanced: [c as MediaTrackConstraintSet] }).catch(() => {})
+  track
+    ?.applyConstraints({ advanced: [c as MediaTrackConstraintSet] })
+    .catch(() => {})
+    .then(() => refreshCaps(src.id, track))
+}
+
+/**
+ * Set any single hardware control the camera reported (brightness, pan, background blur…),
+ * then read back what the camera actually applied.
+ */
+export async function setRawControl(src: VideoSource, key: string, value: unknown) {
+  if (src.kind === 'phone') {
+    sendToPhone(src.id, { type: 'hw', c: { [key]: value } })
+    return
+  }
+  const track = video.getStream(src.id)?.getVideoTracks()[0]
+  if (!track) return
+  try {
+    await track.applyConstraints({ advanced: [{ [key]: value } as MediaTrackConstraintSet] })
+  } catch {
+    toast(`${src.name}: the camera refused that ${key} value`, 'bad')
+  }
+  refreshCaps(src.id, track)
+}
+
+/** Re-read a local camera's capabilities and current values into the store. */
+export function refreshCaps(id: string, track: MediaStreamTrack) {
+  const cur = store.get().sources.find((s) => s.id === id)
+  if (!cur) return
+  const fresh = capsOf(track)
+  updateSource(id, { hw: { ...cur.hw, raw: fresh.raw, width: fresh.width, height: fresh.height, fps: fresh.fps } })
 }
 
 /** Switch a camera's resolution / frame rate. Simulated cameras just relabel. */

@@ -81,6 +81,7 @@ function db(g: number) {
 }
 
 function Strip({ ch }: { ch: AudioChannel }) {
+  const selected = useStore((s) => s.inspect === 'mic' && s.selectedChannel === ch.id)
   const sources = useStore((s) => s.sources)
   const anySolo = useStore((s) => s.channels.some((c) => c.solo))
   const afvOpen = useStore((s) => !ch.afv || s.program === ch.afv)
@@ -95,6 +96,14 @@ function Strip({ ch }: { ch: AudioChannel }) {
           <Icon name={ch.link} size={11} /> {LINK_LABEL[ch.link]}
           {ch.battery !== undefined && <Battery level={ch.battery} />}
         </span>
+        <button
+          className={`strip-set ${selected ? 'is-on' : ''}`}
+          onClick={() => store.set({ inspect: 'mic', selectedChannel: ch.id, inspectorOpen: true, mobileTab: 'camera' })}
+          aria-label={`${ch.name} settings`}
+          title="Trim, EQ, compressor, gate…"
+        >
+          <Icon name="settings" size={12} /> Settings
+        </button>
       </div>
       <div className="strip-body">
         <canvas ref={meter} width={10} height={150} className="meter" aria-hidden />

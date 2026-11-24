@@ -77,6 +77,9 @@ export interface State {
   preview: string | null
   /** Camera shown in the inspector and the focus view. */
   selected: string | null
+  /** What the settings panel shows. */
+  inspect: 'camera' | 'mic'
+  selectedChannel: string | null
   transition: TransitionType
   duration: number // ms
   /** 0..1 while a transition runs (auto or T-bar). */
@@ -115,6 +118,8 @@ const initial: State = {
   program: null,
   preview: null,
   selected: null,
+  inspect: 'camera',
+  selectedChannel: null,
   transition: 'mix',
   duration: 800,
   tbar: 0,
