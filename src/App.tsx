@@ -166,6 +166,11 @@ function Welcome() {
             <span className="wcard-go">Start connecting →</span>
           </button>
         </div>
+        {import.meta.env.VITE_PREVIEW === '1' && (
+          <p className="note preview-note">
+            This is a browser preview: the demo works fully, but cameras, microphones, Wi-Fi phones, Bluetooth and saving recordings are blocked here. Use the full app (GitHub Pages or <code>npm run dev</code>) to connect real devices.
+          </p>
+        )}
         <ul className="welcome-links">
           <li>
             <Icon name="usb" /> USB & built-in
