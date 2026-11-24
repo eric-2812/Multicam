@@ -20,7 +20,7 @@ function RecBadge({ src }: { src: VideoSource }) {
     const t = setInterval(() => setBytes(recorder.bytes(src.id)), 1000)
     return () => clearInterval(t)
   }, [rec, src.id])
-  if (rec && bytes !== null) return <span className="t-rec is-rec">REC {fmtBytes(bytes)}</span>
+  if (rec && bytes !== null) return <span className="t-rec is-rec">REC{bytes > 0 ? ` ${fmtBytes(bytes)}` : ''}</span>
   if (!src.rec.armed) return <span className="t-rec is-off">NOT ARMED</span>
   return null
 }

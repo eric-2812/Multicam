@@ -251,6 +251,8 @@ function HwSummary({ src }: { src: VideoSource }) {
   if (hw.torch) names.push('torch')
   const extra = extraKeys(src).length
   if (!hw.raw) {
+    // IP cameras and screen shares have no camera controls to report.
+    if (src.kind === 'url' || src.kind === 'screen') return null
     return <p className="hint">This browser doesn't report camera controls. Chrome or Edge show every setting the camera supports.</p>
   }
   return (

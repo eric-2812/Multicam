@@ -45,6 +45,8 @@ interface Link {
   timers: number[]
   /** GATT allows one operation at a time, so every write goes through this queue. */
   queue: Promise<unknown>
+  /** Set while a connect is in flight, so the retry loop and the Reconnect button can't overlap. */
+  connecting?: boolean
   setRecording(on: boolean): Promise<void>
   photo?(): Promise<void>
   connect(): Promise<void>
@@ -64,6 +66,22 @@ async function write(c: Char, bytes: number[]) {
   const data = new Uint8Array(bytes)
   if (c.properties.write) await c.writeValueWithResponse(data)
   else await c.writeValueWithoutResponse(data)
+}
+
+/** One connect at a time, and no leftover timers from a previous connection. */
+function guardConnect(link: Link) {
+  const raw = link.connect.bind(link)
+  link.connect = async () => {
+    if (link.connecting) return
+    link.connecting = true
+    link.timers.forEach(clearInterval)
+    link.timers = []
+    try {
+      await raw()
+    } finally {
+      link.connecting = false
+    }
+  }
 }
 
 function track(link: Link, id: string, name: string) {
@@ -177,15 +195,14 @@ export async function pairGoPro() {
     },
     async setRecording(on) {
       if (on) {
-        // Make sure it's in video mode (preset group 1000), then start.
-        await enqueue(link, () => write(cmd, [0x04, 0x3e, 0x02, 0x03, 0xe8]))
-        await sleep(150)
+        // Uses whatever video preset the operator picked on the camera.
         await enqueue(link, () => write(cmd, [0x03, 0x01, 0x01, 0x01]))
       } else {
         await enqueue(link, () => write(cmd, [0x03, 0x01, 0x01, 0x00]))
       }
     },
   }
+  guardConnect(link)
   links.set(id, link)
   track(link, id, name)
   try {
@@ -241,14 +258,22 @@ export async function pairSony() {
         if (v && v.byteLength >= 3 && v.getUint8(0) === 0x02 && v.getUint8(1) === 0xd5) update(id, { recording: v.getUint8(2) === 0x20 })
       })
       await status.startNotifications()
-      update(id, { status: 'connected' })
+      // Sony only reports changes, so a freshly paired camera is assumed to be stopped (the
+      // Sony tab asks for that); from then on the camera's own notifications keep it right.
+      const cur = store.get().remotes.find((r) => r.id === id)
+      update(id, { status: 'connected', recording: cur?.recording ?? false })
     },
     async setRecording(on) {
       // The record button toggles, so only press it when the state needs to change.
       const cur = store.get().remotes.find((r) => r.id === id)?.recording
       if (cur === on) return
+      if (cur === null) {
+        // The record button toggles; until the camera has reported its state, pressing it could
+        // stop a recording instead of starting one.
+        toast(`${name}: recording state not known yet — press record on the camera once, then Tally can follow it`, 'bad')
+        return
+      }
       await press(0x0f, 0x0e)
-      if (cur === null) update(id, { recording: on })
     },
     async photo() {
       // Half press → full press → release full → release half, in that order.
@@ -260,6 +285,7 @@ export async function pairSony() {
       await enqueue(link, () => write(cmd, [0x01, 0x06]))
     },
   }
+  guardConnect(link)
   links.set(id, link)
   track(link, id, name)
   try {

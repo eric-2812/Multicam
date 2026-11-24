@@ -2173,7 +2173,7 @@ span.strip-name {
   color: var(--text-2);
 }
 
-.dev-list li.empty {
+.dev-list li.dev-empty {
   justify-content: center;
   border-style: dashed;
   background: transparent;
@@ -3095,6 +3095,10 @@ span.strip-name {
   background: var(--line);
 }
 
+.welcome-src li {
+  display: flex;
+}
+
 .welcome-src button {
   display: flex;
   align-items: center;
@@ -3174,5 +3178,15 @@ span.strip-name {
 @media (max-width: 760px) {
   .welcome-src {
     grid-template-columns: 1fr;
+  }
+
+  /* Phones: notices sit under the header, clear of the bottom tab bar. */
+  .toasts {
+    top: calc(52px + env(safe-area-inset-top, 0px));
+    bottom: auto;
+  }
+
+  .tbl .hide-sm {
+    display: none;
   }
 }

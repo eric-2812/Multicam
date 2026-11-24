@@ -2,8 +2,6 @@
 
 A browser app for multicam shoots: connect every camera and microphone, set each one up from one place, and **record them all, each to its own file, starting on the same frame** — then cut the footage in your editor (Premiere, Resolve, Final Cut…) as a multicam clip.
 
-There's a **demo studio** (7 cameras, 5 mics, Bluetooth accessories) so you can try everything without hardware.
-
 ## Pages
 
 - **Live**: every camera, with three views:
@@ -13,7 +11,7 @@ There's a **demo studio** (7 cameras, 5 mics, Bluetooth accessories) so you can 
 
   Next to the views are the camera settings and the audio mixer.
 - **Setup**:
-  - **Project**: name, take number, notes, demo on/off.
+  - **Project**: name, take number, notes.
   - **Devices**: everything connected, and every way to add more.
   - **Recording**: folder or downloads, MP4/WebM, bitrate, what gets recorded, storage per hour.
   - **Timecode & sync**: master clock, latency, auto lip-sync, slate, phone clocks.
@@ -43,14 +41,26 @@ Each control only appears when the camera supports it:
 - **Exposure**: auto/manual, shutter ring with shutter angle, ISO, ND filter, exposure compensation, with over/under-exposure warnings.
 - **Colour**: auto/manual white balance, presets and Kelvin, tint, picture profile (Standard / Flat / Vivid / Mono), saturation, contrast, sharpness. **Match all cameras** copies one camera's look to every camera.
 
-Real cameras are driven through the browser's camera constraints (focus distance, exposure time, ISO, colour temperature, zoom, torch, resolution, frame rate). Demo cameras simulate a lens: depth of field, vignetting, motion blur, grain and ND.
+Controls appear only when the camera supports them, driven through the browser's camera constraints. Cameras are opened with PTZ permission so pan, tilt and zoom are reported, and every other setting a camera exposes (brightness, contrast, background blur, face framing…) gets its own control under **Camera hardware**.
 
 ## Connecting devices
+
+### iPhone, GoPro and Sony Alpha
+
+| Camera | Picture into Tally | Recording on the camera |
+| --- | --- | --- |
+| **iPhone** | Continuity Camera on a Mac (shows up as “iPhone Camera”), or the Wi-Fi link in Safari on any computer | Over Wi-Fi the iPhone records its own full-quality file with each take |
+| **GoPro** (HERO8+) | Webcam mode over USB-C with the GoPro Webcam app (up to 1080p), or HDMI with the Media Mod into a capture card | Pair over Bluetooth (HERO9+, Open GoPro API): it records to its card with REC; battery and recording state are shown |
+| **Sony Alpha** (a7 IV, a7S III, FX3, ZV…) | USB Streaming (UVC/UAC, 4K on a 10 Gbps port, 720p on USB 2), or clean HDMI into a capture card | Pair as a Bluetooth remote (“Bluetooth Rmt Ctrl” on): it starts and stops recording to its card with REC |
+
+Bluetooth control needs Chrome or Edge (Mac, Windows, ChromeOS, Android). The Sony protocol is the one Sony's RMT-P1BT remote uses, documented by the community and confirmed on the a7 III and ZV-1F; it has not been tested on an a7 IV yet.
+
+### Everything else
 
 | How | What |
 | --- | --- |
 | **USB & built-in** | Webcams, HDMI/SDI capture cards, USB mics and interfaces. |
-| **Phone over Wi-Fi** | Scan a QR code. The phone becomes a camera + mic with a tally border, remote zoom/torch/flip, a synced timecode display, and local recording. Video goes peer-to-peer over WebRTC. |
+| **Android / any phone over Wi-Fi** | Scan a QR code. The phone becomes a camera + mic with a tally border, remote zoom/torch/flip, a synced timecode display, and local recording. Video goes peer-to-peer over WebRTC. |
 | **IP camera** | MJPEG / MP4 / HLS URL. RTSP isn't supported in browsers, so restream it through OBS. |
 | **Bluetooth** | Paired Bluetooth mics/headsets; BLE accessories with their battery level. |
 | **Screen** | A screen, window or tab, with its audio. |

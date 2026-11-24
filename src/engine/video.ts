@@ -1,6 +1,5 @@
 import { store, toast, type State } from '../store'
 import type { VideoSource } from '../types'
-import { audio } from './audio'
 import { masterTC, nowMs, stamp } from './timecode'
 
 export const FRAME_W = 960
@@ -262,7 +261,6 @@ class VideoEngine {
     this.ltLevel += ((st.lowerThird.on ? 1 : 0) - this.ltLevel) * 0.15
     this.composeProgram(this.monitors.program, st, t)
     if (st.view === 'switch' && st.page === 'live') this.composePreview(this.monitors.preview, st)
-    audio.sync(st)
   }
 
   private renderSource(src: VideoSource, rt: Runtime, t: number) {

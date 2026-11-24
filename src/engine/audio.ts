@@ -1,4 +1,4 @@
-import type { State } from '../store'
+import { store, type State } from '../store'
 
 interface Strip {
   /** Lip-sync compensation. */
@@ -45,6 +45,8 @@ class AudioEngine {
     }
     const ctx = new AudioContext({ latencyHint: 'interactive' })
     this.ctx = ctx
+    // Timer, not requestAnimationFrame: gate, faders and AFV must keep working in a background tab.
+    window.setInterval(() => this.sync(store.get()), 20)
     this.master = ctx.createGain()
     this.monitor = ctx.createGain()
     this.monitor.gain.value = 0
@@ -132,6 +134,8 @@ class AudioEngine {
     const s = this.strips.get(id)
     if (!s) return
     s.source?.disconnect()
+    s.comp.disconnect()
+    s.noiseGate.disconnect()
     s.panner.disconnect()
     this.strips.delete(id)
   }

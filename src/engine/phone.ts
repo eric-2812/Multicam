@@ -94,9 +94,17 @@ export function openRoom() {
     if (status.state !== 'ready') setStatus({ state: 'error', error: e.message })
     else toast(`Phone link: ${e.message}`, 'bad')
   })
+  let retries = 0
+  p.on('open', () => (retries = 0))
   p.on('disconnected', () => {
-    // Lost the broker; existing calls keep flowing, but reconnect so new phones can join.
-    setTimeout(() => !p.destroyed && p.reconnect(), 1500)
+    // Lost the broker. Calls already running keep flowing; reconnect (with back-off) so new
+    // phones can join, but give up after a few tries instead of hammering an unreachable broker.
+    if (p.destroyed || status.state !== 'ready' || retries >= 5) {
+      if (status.state !== 'ready') setStatus({ state: 'error', error: 'the connection service could not be reached' })
+      return
+    }
+    retries++
+    setTimeout(() => !p.destroyed && p.reconnect(), 1500 * 2 ** retries)
   })
   // The slate flashes every phone screen too, so phones can act as a visible clapperboard.
   window.addEventListener('tally-slate', () => {

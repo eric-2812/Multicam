@@ -118,7 +118,7 @@ function UsbTab() {
             </li>
           )
         })}
-        {!cams.length && <li className="empty">No cameras found. Plug one in — the list updates by itself.</li>}
+        {!cams.length && <li className="dev-empty">No cameras found. Plug one in — the list updates by itself.</li>}
       </ul>
 
       <h4>
@@ -139,7 +139,7 @@ function UsbTab() {
             </li>
           )
         })}
-        {!mics.length && <li className="empty">No microphones found.</li>}
+        {!mics.length && <li className="dev-empty">No microphones found.</li>}
       </ul>
     </div>
   )
@@ -200,7 +200,7 @@ function PhoneTab() {
               <span className={`status status-${p.status}`}>{p.status}</span>
             </li>
           ))}
-          {!phones.length && <li className="empty">Waiting for phones…</li>}
+          {!phones.length && <li className="dev-empty">Waiting for phones…</li>}
         </ul>
       </div>
     </div>
@@ -265,7 +265,7 @@ function BluetoothTab() {
             </button>
           </li>
         ))}
-        {unlocked && !bt.length && <li className="empty">No Bluetooth mics detected. Paired devices with unusual names may be listed in the USB tab.</li>}
+        {unlocked && !bt.length && <li className="dev-empty">No Bluetooth mics detected. Paired devices with unusual names may be listed in the USB tab.</li>}
       </ul>
 
       <h4>Bluetooth LE accessories</h4>
@@ -356,7 +356,7 @@ function Detected(props: { match: RegExp; what: string; mics?: boolean }) {
               </button>
             </li>
           ))}
-          {!found.length && !foundMics.length && <li className="empty">No {props.what} found yet. Follow the steps above — the list updates by itself.</li>}
+          {!found.length && !foundMics.length && <li className="dev-empty">No {props.what} found yet. Follow the steps above — the list updates by itself.</li>}
         </ul>
       )}
       {error && <p className="note bad">{error}</p>}
@@ -443,6 +443,8 @@ function PairButton({ kind }: { kind: 'gopro' | 'sony' }) {
 }
 
 function IphoneTab() {
+  // The Wi-Fi link only opens when asked for, so browsing this tab doesn't touch the network.
+  const [wifi, setWifi] = useState(false)
   return (
     <div className="tab-body">
       <h4>On a Mac: Continuity Camera</h4>
@@ -455,7 +457,15 @@ function IphoneTab() {
 
       <h4>Anywhere: over Wi-Fi</h4>
       <p className="lead">Works with any iPhone or iPad and any computer. Open the link on the iPhone in Safari. While Tally records, the iPhone also records its own full-quality file (saved to Files → Downloads).</p>
-      <PhoneTab />
+      {wifi ? (
+        <PhoneTab />
+      ) : (
+        <div>
+          <button className="btn" onClick={() => setWifi(true)}>
+            <Icon name="wifi" size={14} /> Show the QR code
+          </button>
+        </div>
+      )}
 
       <h4>With a cable on Windows</h4>
       <p className="lead">Apps like Camo or EpocCam turn the iPhone into a USB webcam. Once installed, it appears in “USB & capture”.</p>
@@ -500,7 +510,7 @@ function SonyTab() {
       <h4>Start recording on the camera</h4>
       <p className="lead">
         Pair the camera over Bluetooth as a remote and it starts and stops recording to its card with REC. On the camera: Network → Bluetooth → Bluetooth Function On, then Bluetooth Rmt
-        Ctrl On, then Pairing.
+        Ctrl On, then Pairing. Make sure the camera isn’t recording when you pair it.
       </p>
       <PairButton kind="sony" />
       <RemoteList kind="sony" />
@@ -525,10 +535,10 @@ function Connected() {
           <tr>
             <th>#</th>
             <th>Device</th>
-            <th>Type</th>
-            <th>Connection</th>
+            <th className="hide-sm">Type</th>
+            <th className="hide-sm">Connection</th>
             <th>Status</th>
-            <th className="num">Latency</th>
+            <th className="num hide-sm">Latency</th>
             <th aria-label="Actions" />
           </tr>
         </thead>
@@ -540,14 +550,14 @@ function Connected() {
                 <b>{s.name}</b>
                 <small>{s.detail}</small>
               </td>
-              <td>Camera</td>
-              <td>
+              <td className="hide-sm">Camera</td>
+              <td className="hide-sm">
                 <LinkBadge link={s.link} />
               </td>
               <td>
                 <span className={`status status-${s.status}`}>{s.status}</span>
               </td>
-              <td className="num mono">{s.latency !== undefined ? `${s.latency} ms` : '—'}</td>
+              <td className="num mono hide-sm">{s.latency !== undefined ? `${s.latency} ms` : '—'}</td>
               <td className="num">
                 <button className="icon-btn" aria-label={`Remove ${s.name}`} disabled={recording} title={recording ? 'Stop recording first' : undefined} onClick={() => removeSource(s.id)}>
                   <Icon name="trash" size={13} />
@@ -562,14 +572,14 @@ function Connected() {
                 <b>{c.name}</b>
                 <small>{c.detail}</small>
               </td>
-              <td>Microphone</td>
-              <td>
+              <td className="hide-sm">Microphone</td>
+              <td className="hide-sm">
                 <LinkBadge link={c.link} />
               </td>
               <td>
                 <span className={`status status-${c.status}`}>{c.status}</span>
               </td>
-              <td className="num mono">{c.latency !== undefined ? `${c.latency} ms` : '—'}</td>
+              <td className="num mono hide-sm">{c.latency !== undefined ? `${c.latency} ms` : '—'}</td>
               <td className="num">
                 <button className="icon-btn" aria-label={`Remove ${c.name}`} disabled={recording} title={recording ? 'Stop recording first' : undefined} onClick={() => removeChannel(c.id)}>
                   <Icon name="trash" size={13} />
@@ -584,14 +594,14 @@ function Connected() {
                 <b>{a.name}</b>
                 <small>{a.detail}</small>
               </td>
-              <td>Accessory</td>
-              <td>
+              <td className="hide-sm">Accessory</td>
+              <td className="hide-sm">
                 <LinkBadge link={a.link} />
               </td>
               <td>
                 <span className={`status status-${a.status === 'connected' ? 'live' : 'lost'}`}>{a.status}</span>
               </td>
-              <td className="num mono">{a.battery !== undefined ? `${Math.round(a.battery)}% batt.` : '—'}</td>
+              <td className="num mono hide-sm">{a.battery !== undefined ? `${Math.round(a.battery)}% batt.` : '—'}</td>
               <td className="num">
                 <button className="icon-btn" aria-label={`Forget ${a.name}`} onClick={() => store.set((st) => ({ accessories: st.accessories.filter((x) => x.id !== a.id) }))}>
                   <Icon name="trash" size={13} />
@@ -606,14 +616,14 @@ function Connected() {
                 <b>{r.name}</b>
                 <small>Records on its own card{r.follow ? ' with REC' : ''}</small>
               </td>
-              <td>{r.kind === 'gopro' ? 'GoPro' : 'Sony'} (card)</td>
-              <td>
+              <td className="hide-sm">{r.kind === 'gopro' ? 'GoPro' : 'Sony'} (card)</td>
+              <td className="hide-sm">
                 <LinkBadge link="bluetooth" />
               </td>
               <td>
                 <span className={`status status-${r.status === 'connected' ? 'live' : r.status}`}>{r.recording ? 'recording' : r.status}</span>
               </td>
-              <td className="num mono">{r.battery !== undefined ? `${r.battery}% batt.` : '—'}</td>
+              <td className="num mono hide-sm">{r.battery !== undefined ? `${r.battery}% batt.` : '—'}</td>
               <td className="num">
                 <button className="icon-btn" aria-label={`Forget ${r.name}`} disabled={recording} onClick={() => forgetRemote(r.id)}>
                   <Icon name="trash" size={13} />

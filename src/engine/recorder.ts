@@ -85,6 +85,8 @@ interface Track {
   file: TakeFile
   sourceId?: string
   done: Promise<void>
+  /** Tracks created for this file (clones, canvas captures) — stopped when the take ends. */
+  stream: MediaStream
 }
 
 class Recorder {
@@ -130,7 +132,7 @@ class Recorder {
       }
       rec.onstop = () => res()
     })
-    this.tracks.push({ rec, file, sourceId, done })
+    this.tracks.push({ rec, file, sourceId, done, stream })
   }
 
   async start() {
@@ -170,11 +172,12 @@ class Recorder {
       }
       if (cfg.mics) {
         for (const [i, ch] of st.channels.filter((c) => c.status === 'live').entries()) {
+          // Record a copy: the channel's tap is shared across takes and must keep running.
           const s = audio.channelStream(ch.id)
           if (!s) continue
           const mime = pickMime(cfg.format, 'a')
           const name = `${base}_A${i + 1}_${safe(ch.name)}_${tc}.${extOf(mime, true)}`
-          await this.addTrack(s, name, mime, 'audio', 0)
+          await this.addTrack(new MediaStream(s.getAudioTracks().map((t) => t.clone())), name, mime, 'audio', 0)
         }
       }
       if (cfg.program && video.programCanvas) {
@@ -214,11 +217,17 @@ class Recorder {
       store.set((s) => ({ recordingSince: startMs, takes: [this.take!, ...s.takes] }))
     } catch (e) {
       this.tracks.forEach((t) => t.rec.state !== 'inactive' && t.rec.stop())
+      this.release()
       this.tracks = []
       toast(`Recording did not start: ${(e as Error).message}`, 'bad')
     } finally {
       this.busy = false
     }
+  }
+
+  /** Stop the per-take track copies; the cameras themselves keep running. */
+  private release() {
+    for (const t of this.tracks) t.stream.getTracks().forEach((tr) => tr.stop())
   }
 
   private event(kind: LogEvent['kind'], id: string | null, note?: string) {
@@ -255,6 +264,7 @@ class Recorder {
     window.dispatchEvent(new CustomEvent('tally-rec', { detail: { on: false } }))
     store.set({ recordingSince: null })
     await Promise.all(this.tracks.map((t) => t.done))
+    this.release()
 
     const take = this.take
     take.endMs = end
