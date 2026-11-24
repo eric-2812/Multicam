@@ -1,6 +1,6 @@
 import Peer, { type DataConnection, type MediaConnection, type PeerOptions } from 'peerjs'
 import { addChannel, addSource, store, toast, updateSource } from '../store'
-import type { HwCaps } from '../types'
+import type { HwCaps, RawCap } from '../types'
 import { audio } from './audio'
 import { newChannel, newSource } from './devices'
 import { nowMs } from './timecode'
@@ -64,11 +64,131 @@ export function onRoomStatus(l: (s: RoomStatus) => void) {
   }
 }
 
+/**
+ * The room code is the only thing that lets a phone in, so it comes from the system's secure
+ * random generator and is long enough (10 characters, ~50 bits) that it can't be guessed.
+ */
 function newRoomId() {
   const abc = 'abcdefghjkmnpqrstuvwxyz23456789'
+  const bytes = crypto.getRandomValues(new Uint8Array(10))
   let s = ''
-  for (let i = 0; i < 6; i++) s += abc[(Math.random() * abc.length) | 0]
+  // 248 is the largest multiple of 31 below 256: rejecting bytes above it keeps every letter equally likely.
+  for (let i = 0; s.length < 10; i++) {
+    if (i === bytes.length) {
+      crypto.getRandomValues(bytes)
+      i = 0
+    }
+    if (bytes[i] < 248) s += abc[bytes[i] % abc.length]
+  }
   return `cortiva-${s}`
+}
+
+// ------------------------------------------------------------ checking what arrives over Wi-Fi
+// Everything a phone (or the control room) sends is untrusted: check its shape before using it.
+
+const MAX_PHONES = 16
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+
+/** A name safe to show and to put in file names and edit lists: no control or direction characters. */
+export function cleanName(v: unknown, fallback: string, max = 24): string {
+  if (typeof v !== 'string') return fallback
+  // eslint-disable-next-line no-control-regex
+  const s = v.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim()
+  return s.slice(0, max) || fallback
+}
+
+const RANGE_KEYS = ['zoom', 'focus', 'aperture', 'shutter', 'iso', 'wb', 'ev', 'sharpness', 'pan', 'tilt'] as const
+
+/** Keep only well-formed camera capabilities from a phone. */
+export function cleanCaps(v: unknown): HwCaps {
+  if (!isObj(v)) return {}
+  const out: HwCaps = {}
+  for (const k of RANGE_KEYS) {
+    const r = v[k]
+    if (Array.isArray(r) && r.length === 2 && finite(r[0]) && finite(r[1])) out[k] = [r[0], r[1]]
+  }
+  if (typeof v.torch === 'boolean') out.torch = v.torch
+  if (typeof v.nd === 'boolean') out.nd = v.nd
+  for (const k of ['width', 'height', 'fps'] as const) if (finite(v[k]) && v[k] > 0 && v[k] < 100000) out[k] = v[k]
+  if (Array.isArray(v.modes)) {
+    out.modes = v.modes
+      .slice(0, 64)
+      .filter((m): m is { w: number; h: number; fps: unknown } => isObj(m) && finite(m.w) && finite(m.h))
+      .map((m) => ({ w: m.w, h: m.h, fps: Array.isArray(m.fps) ? m.fps.filter(finite).slice(0, 16) : [] }))
+  }
+  if (isObj(v.raw) && isObj(v.raw.caps) && isObj(v.raw.settings)) {
+    const caps: Record<string, RawCap> = {}
+    const settings: Record<string, unknown> = {}
+    for (const [k, c] of Object.entries(v.raw.caps).slice(0, 64)) {
+      if (!/^[A-Za-z]{1,40}$/.test(k)) continue
+      if (typeof c === 'boolean') caps[k] = c
+      else if (Array.isArray(c)) caps[k] = c.filter((x): x is string | boolean => typeof x === 'boolean' || (typeof x === 'string' && x.length <= 40)).slice(0, 32)
+      else if (isObj(c) && finite(c.min) && finite(c.max)) caps[k] = { min: c.min, max: c.max, ...(finite(c.step) ? { step: c.step } : {}) }
+    }
+    for (const [k, s] of Object.entries(v.raw.settings).slice(0, 64)) {
+      if (!/^[A-Za-z]{1,40}$/.test(k)) continue
+      if (finite(s) || typeof s === 'boolean' || (typeof s === 'string' && s.length <= 40)) settings[k] = s
+    }
+    out.raw = { caps, settings }
+  }
+  return out
+}
+
+function parsePhoneMsg(raw: unknown): PhoneMsg | null {
+  if (!isObj(raw)) return null
+  switch (raw.type) {
+    case 'hello':
+    case 'caps': {
+      const facing = raw.facing === 'user' ? 'user' : 'environment'
+      const caps = cleanCaps(raw.caps)
+      return raw.type === 'hello' ? { type: 'hello', name: cleanName(raw.name, 'Phone'), caps, facing } : { type: 'caps', caps, facing }
+    }
+    case 'ping':
+      return finite(raw.t0) ? { type: 'ping', t0: raw.t0 } : null
+    case 'clock':
+      return finite(raw.offset) && finite(raw.rtt) && Math.abs(raw.offset) < 8.64e7 && raw.rtt >= 0 && raw.rtt < 60000
+        ? { type: 'clock', offset: raw.offset, rtt: raw.rtt }
+        : null
+    case 'battery':
+      return finite(raw.level) && raw.level >= 0 && raw.level <= 1 ? { type: 'battery', level: raw.level, charging: raw.charging === true } : null
+    default:
+      return null
+  }
+}
+
+const TALLIES: readonly Tally[] = ['program', 'preview', 'none']
+
+function parseHostMsg(raw: unknown): HostMsg | null {
+  if (!isObj(raw)) return null
+  switch (raw.type) {
+    case 'tally':
+      return TALLIES.includes(raw.tally as Tally) ? { type: 'tally', tally: raw.tally as Tally } : null
+    case 'hw': {
+      if (!isObj(raw.c)) return null
+      // Constraints for this phone's own camera: plain values only.
+      const c: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(raw.c).slice(0, 64)) {
+        if (/^[A-Za-z]{1,40}$/.test(k) && (finite(v) || typeof v === 'boolean' || (typeof v === 'string' && v.length <= 40))) c[k] = v
+      }
+      return { type: 'hw', c }
+    }
+    case 'flip':
+    case 'slate':
+      return { type: raw.type }
+    case 'pong':
+      return finite(raw.t0) && finite(raw.th) ? { type: 'pong', t0: raw.t0, th: raw.th } : null
+    case 'rec':
+      return {
+        type: 'rec',
+        on: raw.on === true,
+        take: typeof raw.take === 'string' ? raw.take.replace(/[^\w-]+/g, '_').slice(0, 64) : undefined,
+        startMs: finite(raw.startMs) ? raw.startMs : undefined,
+        number: finite(raw.number) ? Math.max(0, Math.min(999, Math.round(raw.number))) : undefined,
+      }
+    default:
+      return null
+  }
 }
 
 /**
@@ -127,14 +247,19 @@ export function openRoom() {
     }
   })
   p.on('connection', (conn) => {
-    const link = linkFor(conn.peer, (conn.metadata?.name as string) || 'Phone')
+    const link = linkFor(conn.peer, conn.metadata?.name)
+    if (!link) return conn.close()
     link.conn = conn
-    conn.on('data', (raw) => handlePhoneMsg(link, raw as PhoneMsg))
+    conn.on('data', (raw) => {
+      const msg = parsePhoneMsg(raw)
+      if (msg) handlePhoneMsg(link, msg)
+    })
     conn.on('open', () => conn.send({ type: 'tally', tally: currentTally(link.sourceId) } satisfies HostMsg))
     conn.on('close', () => lost(link))
   })
   p.on('call', (call) => {
-    const link = linkFor(call.peer, (call.metadata?.name as string) || 'Phone')
+    const link = linkFor(call.peer, call.metadata?.name)
+    if (!link) return call.close()
     link.call = call
     call.answer()
     call.on('stream', (stream) => {
@@ -168,10 +293,17 @@ function currentTally(sourceId: string): Tally {
   return st.program === sourceId ? 'program' : st.preview === sourceId ? 'preview' : 'none'
 }
 
-function linkFor(peerId: string, name: string): PhoneLink {
+function linkFor(peerId: string, rawName: unknown): PhoneLink | null {
   let link = phones.get(peerId)
   if (link && store.get().sources.some((s) => s.id === link!.sourceId)) return link
-  const src = newSource({ name: name.slice(0, 24), kind: 'phone', link: 'wifi', detail: 'Phone over Wi-Fi', status: 'connecting', signal: 3 })
+  // Drop links whose camera was removed, then refuse once the room is full.
+  for (const [id, l] of phones) if (!store.get().sources.some((s) => s.id === l.sourceId)) phones.delete(id)
+  if (phones.size >= MAX_PHONES) {
+    toast(`A phone tried to join, but ${MAX_PHONES} phones are already connected`, 'bad')
+    return null
+  }
+  const name = cleanName(rawName, 'Phone')
+  const src = newSource({ name, kind: 'phone', link: 'wifi', detail: 'Phone over Wi-Fi', status: 'connecting', signal: 3 })
   addSource(src)
   toast(`${src.name} is joining…`, 'info')
   link = { sourceId: src.id }
@@ -188,7 +320,7 @@ function handlePhoneMsg(link: PhoneLink, msg: PhoneMsg) {
   } else if (msg.type === 'hello' || msg.type === 'caps') {
     const patch: Parameters<typeof updateSource>[1] = { hw: msg.caps, detail: `Phone · ${msg.facing === 'user' ? 'front' : 'rear'} camera` }
     if (msg.type === 'hello') {
-      patch.name = msg.name.slice(0, 24)
+      patch.name = msg.name
       toast(`${msg.name} connected over Wi-Fi`, 'good')
     }
     updateSource(link.sourceId, patch)
@@ -323,7 +455,8 @@ export function joinRoom(
       on.state('live')
     })
     conn.on('data', (raw) => {
-      const m = raw as HostMsg
+      const m = parseHostMsg(raw)
+      if (!m) return
       if (m.type === 'tally') on.tally(m.tally)
       else if (m.type === 'hw') on.hw(m)
       else if (m.type === 'flip') on.flip()

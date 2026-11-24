@@ -228,9 +228,22 @@ export async function addScreen() {
   toast('Screen share added', 'good')
 }
 
+/** "http://admin:secret@10.0.0.5/video" → "http://admin@10.0.0.5/video". */
+export function withoutPassword(url: string) {
+  try {
+    const u = new URL(url)
+    if (!u.password) return url
+    u.password = ''
+    return u.toString()
+  } catch {
+    return url
+  }
+}
+
 export function addUrlCamera(name: string, url: string) {
   const asVideo = /\.(mp4|webm|mov|m3u8|ogv)(\?|$)/i.test(url)
-  const src = newSource({ name: name || 'IP camera', kind: 'url', link: 'network', detail: url, ...estimate('network') })
+  // The address is shown on screen and saved in each take sheet: never with its password.
+  const src = newSource({ name: name || 'IP camera', kind: 'url', link: 'network', detail: withoutPassword(url), ...estimate('network') })
   addSource(src)
   video.attachUrl(
     src.id,

@@ -353,18 +353,30 @@ function buildEdl(log: LogEvent[], since: number, end: number, fps: 25 | 30, tit
     const out = cuts[i + 1]?.ms ?? end
     const reel = (c.name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8) || 'AX').padEnd(8)
     lines.push(`${pad(i + 1)}  ${reel} V     C        ${todTC(c.ms, fps)} ${todTC(out, fps)} ${runTC(c.ms - since, fps)} ${runTC(out - since, fps)}`)
-    lines.push(`* FROM CLIP NAME: ${c.name}`)
+    lines.push(`* FROM CLIP NAME: ${oneLine(c.name)}`)
     log
       .filter((e) => e.kind !== 'cut' && e.ms >= c.ms && e.ms < out)
-      .forEach((e) => lines.push(`* ${e.kind.toUpperCase()}${e.note ? ` ${e.note}` : ''} AT ${runTC(e.ms - since, fps)}`))
+      .forEach((e) => lines.push(`* ${e.kind.toUpperCase()}${e.note ? ` ${oneLine(e.note)}` : ''} AT ${runTC(e.ms - since, fps)}`))
     lines.push('')
   })
   return lines.join('\r\n')
 }
 
+// eslint-disable-next-line no-control-regex
+const oneLine = (s: string) => s.replace(/[\u0000-\u001f\u007f]+/g, ' ')
+
+/**
+ * A CSV cell that a spreadsheet shows as text: quoted, and never read as a formula (camera names
+ * can come from phones on the network).
+ */
+const cell = (s: string) => {
+  const v = oneLine(s)
+  return `"${(/^[=+\-@]/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"`
+}
+
 function buildCsv(log: LogEvent[], since: number, fps: 25 | 30) {
   const rows = ['event,name,record_tc,time_of_day_tc,unix_ms,program_camera']
-  log.forEach((e) => rows.push(`${e.kind},${e.note ?? ''},${runTC(e.ms - since, fps)},${todTC(e.ms, fps)},${Math.round(e.ms)},"${e.name.replace(/"/g, '""')}"`))
+  log.forEach((e) => rows.push(`${e.kind},${cell(e.note ?? '')},${runTC(e.ms - since, fps)},${todTC(e.ms, fps)},${Math.round(e.ms)},${cell(e.name)}`))
   return rows.join('\n')
 }
 

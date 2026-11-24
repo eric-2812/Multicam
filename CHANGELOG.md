@@ -2,6 +2,34 @@
 
 Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
 
+## 0.2.0-beta — 24 nov 2026
+
+Versión de seguridad, tras una auditoría de toda la app.
+
+### Seguridad
+- **Electron 45** (antes 33, que ya no recibía parches de seguridad de Chromium).
+- La app de escritorio solo muestra sus propias páginas: no navega a webs externas ni abre ventanas nuevas, y los enlaces externos (solo `https`) se abren en tu navegador.
+- Cámara, micrófono, Bluetooth, carpetas y pantalla solo se conceden a la propia app. Ya no se da acceso a dispositivos USB, serie o HID.
+- El ejecutable viene protegido: no se puede usar como intérprete de Node, ni inyectarle código con variables de entorno o depuradores, y comprueba que sus archivos no se han modificado.
+- Política de seguridad de contenido (CSP) en la app y en la web: solo se ejecuta el código de Cortiva.
+- Emparejar una cámara por Bluetooth siempre pide confirmación.
+- Los archivos descargados siempre se guardan dentro de **Vídeos\Cortiva**, con nombres limpios.
+
+### Móviles por Wi-Fi
+- El código de la sala es más largo (10 caracteres) y se genera con el generador aleatorio seguro del sistema, así que no se puede adivinar.
+- Todo lo que envía un móvil se comprueba antes de usarlo: nombres sin caracteres raros, ajustes de cámara válidos. Un móvil con datos malformados ya no puede bloquear la sala de control.
+- Máximo de 16 móviles conectados a la vez.
+
+### Grabaciones
+- Si una cámara IP lleva contraseña en su dirección, ya no se muestra en pantalla ni se guarda en la hoja de toma.
+- El CSV de marcadores ya no deja que una hoja de cálculo interprete un nombre como fórmula, y el EDL no se rompe con nombres raros.
+
+### Proyecto
+- Los workflows de GitHub usan versiones fijas de cada acción, y Dependabot avisa cada semana de actualizaciones de seguridad.
+
+### Límites conocidos
+- El instalador sigue sin firma digital: Windows avisará de "editor desconocido" la primera vez.
+
 ## 0.1.0-beta — 24 nov 2026
 
 Primera beta de Cortiva para Windows.
