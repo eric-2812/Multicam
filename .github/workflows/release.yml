@@ -1,10 +1,16 @@
 name: Release (Windows)
 
-# Push a tag like v0.1.0-beta to build the Windows app and publish it as a GitHub release.
+# Push a tag like v0.1.0-beta — or run this workflow by hand with a tag name — to build the
+# Windows app and publish it as a GitHub release (the tag is created if it doesn't exist yet).
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag
+        default: v0.1.0-beta
+        required: true
 
 permissions:
   contents: write
@@ -28,6 +34,8 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           name: Tally beta 0.1
           prerelease: true
           files: |
