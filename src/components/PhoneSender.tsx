@@ -123,6 +123,7 @@ export function PhoneSender({ room }: { room: string }) {
         state: setState,
         flip: () => void flipRef.current(),
         clock: (offset, rtt) => setClock({ offset, rtt }),
+        rec: (m) => (m.on ? startLocalRef.current(m.take ?? 'Take', m.number ?? 0) : stopLocalRef.current()),
         slate: () => {
           setFlash(true)
           beep()
@@ -139,7 +140,46 @@ export function PhoneSender({ room }: { room: string }) {
     }
   }
 
+  // Local full-quality recording, started and stopped by the control room.
+  const localRec = useRef<{ rec: MediaRecorder; chunks: Blob[]; name: string } | null>(null)
+  const [recording, setRecording] = useState(false)
+  const startLocal = (take: string, num: number) => {
+    const s = streamRef.current
+    if (!s || localRec.current) return
+    const mime = ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)) ?? ''
+    const rec = new MediaRecorder(s, { mimeType: mime, videoBitsPerSecond: 20_000_000 })
+    const chunks: Blob[] = []
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data)
+    const tc = todTC(nowMs() + (clockRef.current ?? 0), 30).replace(/:/g, '')
+    const name = `${take}_C${num}_${name_.current.replace(/[^\w-]+/g, '_')}_PHONE_${tc}.${mime.includes('mp4') ? 'mp4' : 'webm'}`
+    rec.onstop = () => {
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(new Blob(chunks, { type: rec.mimeType || 'video/webm' }))
+      a.download = name
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    }
+    rec.start(1000)
+    localRec.current = { rec, chunks, name }
+    setRecording(true)
+  }
+  const stopLocal = () => {
+    localRec.current?.rec.stop()
+    localRec.current = null
+    setRecording(false)
+  }
+  const startLocalRef = useRef(startLocal)
+  startLocalRef.current = startLocal
+  const stopLocalRef = useRef(stopLocal)
+  stopLocalRef.current = stopLocal
+  const clockRef = useRef<number | null>(null)
+  clockRef.current = clock.offset
+  const name_ = useRef(name)
+  name_.current = name
+
   const stop = () => {
+    stopLocal()
     sender.current?.close()
     sender.current = null
     streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -193,6 +233,7 @@ export function PhoneSender({ room }: { room: string }) {
       <video ref={videoRef} autoPlay playsInline muted className={facing === 'user' ? 'mirror' : ''} />
       <div className="phone-hud">
         <span className={`phone-tally ${tally}`}>{tally === 'program' ? 'ON AIR' : tally === 'preview' ? 'PREVIEW' : 'STANDBY'}</span>
+        {recording && <span className="phone-rec">● REC on phone</span>}
         <span className="phone-state">{state.startsWith('error:') ? state.slice(6) : (STATE_TEXT[state] ?? state)}</span>
       </div>
       <SyncedTimecode offset={clock.offset} rtt={clock.rtt} />

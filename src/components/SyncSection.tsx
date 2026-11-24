@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { masterTC, nowMs } from '../engine/timecode'
-import { video } from '../engine/video'
+import { recorder } from '../engine/recorder'
 import { store, useStore } from '../store'
 import type { AudioChannel, LatencyKind, VideoSource } from '../types'
 import { Icon, LinkBadge } from './Icon'
@@ -43,23 +43,12 @@ function setDelay(row: Row, delay: number) {
   else store.set((s) => ({ channels: s.channels.map((x) => (x.id === row.item.id ? { ...x, delay } : x)) }))
 }
 
-export function SyncPanel() {
-  const open = useStore((s) => s.syncOpen)
+export function SyncSection() {
   const sources = useStore((s) => s.sources)
   const channels = useStore((s) => s.channels)
   const fps = useStore((s) => s.fps)
   const tcMode = useStore((s) => s.tcMode)
   const burnIn = useStore((s) => s.burnIn)
-  const iso = useStore((s) => s.iso)
-  const rec = useStore((s) => s.recordingSince)
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && store.set({ syncOpen: false })
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
-  if (!open) return null
 
   const rows: Row[] = [...sources.map((item) => ({ kind: 'cam' as const, item })), ...channels.map((item) => ({ kind: 'mic' as const, item }))]
   const totals = rows.filter((r) => r.item.status === 'live').map((r) => (r.item.latency ?? 0) + r.item.delay)
@@ -69,15 +58,7 @@ export function SyncPanel() {
   const phones = sources.filter((s) => s.clock)
 
   return (
-    <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && store.set({ syncOpen: false })}>
-      <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Sync and timecode">
-        <header className="modal-head">
-          <h2>Sync & timecode</h2>
-          <button className="icon-btn" onClick={() => store.set({ syncOpen: false })} aria-label="Close">
-            <Icon name="close" />
-          </button>
-        </header>
-
+    <div className="sync">
         <section className="sync-clock">
           <div>
             <span className="sync-label">Master clock {tcMode === 'run' ? '· record run' : '· time of day'}</span>
@@ -103,18 +84,10 @@ export function SyncPanel() {
               <button className={`chip ${burnIn ? 'is-on' : ''}`} aria-pressed={burnIn} onClick={() => store.set({ burnIn: !burnIn })}>
                 Burn-in on program
               </button>
-              <button
-                className={`chip ${iso ? 'is-on' : ''}`}
-                aria-pressed={iso}
-                disabled={!!rec}
-                onClick={() => store.set({ iso: !iso })}
-                title={rec ? 'Change this before you start recording' : 'Record each camera to its own file, all starting on the same frame'}
-              >
-                ISO record every camera
-              </button>
+
             </div>
           </div>
-          <button className="slate-btn" onClick={() => video.slate()} title="Flash + beep on every camera, mic and phone at once (S)">
+          <button className="slate-btn" onClick={() => recorder.slate()} title="Flash + beep on every camera, mic and phone at once (S)">
             <span className="slate-stripes" aria-hidden />
             Slate
           </button>
@@ -221,10 +194,9 @@ export function SyncPanel() {
             <p className="note">Phones joined over Wi-Fi sync their clocks to this one automatically and show the master timecode on screen.</p>
           )}
           <p className="hint">
-            Recordings save with the start time in the file name; with ISO on, every camera file starts on the same frame. Stopping a recording also downloads an EDL (cut list with timecode) and a CSV of every cut and slate, ready for re-editing.
+            Every file in a take starts on the same frame and carries the start timecode in its name. The take sheet (JSON) lists each device's latency so clean feeds can be slipped into sync in the edit.
           </p>
         </section>
-      </div>
     </div>
   )
 }

@@ -21,6 +21,21 @@ const PATHS: Record<string, string> = {
   keyboard: 'M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M7 14h10',
   power: 'M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0',
   scan: 'M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M8 12h8',
+  grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  focus: 'M3 5h18v11H3zM6 19h3M10.5 19h3M15 19h3',
+  switch: 'M3 6h8v6H3zM13 6h8v6h-8zM6 17h12M9 15l-3 2 3 2M15 15l3 2-3 2',
+  settings: 'M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4',
+  folder: 'M3 6h6l2 2h10v11H3z',
+  marker: 'M6 3h12v18l-6-4-6 4z',
+  film: 'M4 4h16v16H4zM8 4v16M16 4v16M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4',
+  rotate: 'M20 12a8 8 0 1 1-3-6.2M20 4v4h-4',
+  chevron: 'M8 10l4 4 4-4',
+  layers: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5',
+  copy: 'M8 8h12v12H8zM4 16V4h12',
+  clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+  wave: 'M2 12h2l2-6 3 12 3-9 2 6 2-3h6',
+  list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  exit: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
 }
 
 export function Icon({ name, size = 16, className }: { name: string; size?: number; className?: string }) {

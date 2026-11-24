@@ -8,6 +8,8 @@ import {
   addWebcam,
   bluetoothSupported,
   guessLink,
+  removeChannel,
+  removeSource,
   listDevices,
   mediaSupported,
   scanBluetooth,
@@ -301,39 +303,128 @@ function ScreenTab() {
   )
 }
 
-export function AddDevice() {
-  const open = useStore((s) => s.addOpen)
-  const tab = useStore((s) => s.addTab)
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && store.set({ addOpen: false })
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
-  if (!open) return null
+function Connected() {
+  const recording = useStore((s) => !!s.recordingSince)
+  const sources = useStore((s) => s.sources)
+  const channels = useStore((s) => s.channels)
+  const accessories = useStore((s) => s.accessories)
   return (
-    <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && store.set({ addOpen: false })}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label="Add a device">
-        <header className="modal-head">
-          <h2>Add a device</h2>
-          <button className="icon-btn" onClick={() => store.set({ addOpen: false })} aria-label="Close">
-            <Icon name="close" />
-          </button>
-        </header>
-        <nav className="tabs" role="tablist">
-          {TABS.map((t) => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'is-on' : ''} onClick={() => store.set({ addTab: t.id })}>
-              <Icon name={t.icon} size={14} />
-              {t.label}
-            </button>
+    <div className="dev-connected">
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Device</th>
+            <th>Type</th>
+            <th>Connection</th>
+            <th>Status</th>
+            <th className="num">Latency</th>
+            <th aria-label="Actions" />
+          </tr>
+        </thead>
+        <tbody>
+          {sources.map((s) => (
+            <tr key={s.id}>
+              <td className="mono">{s.number}</td>
+              <td>
+                <b>{s.name}</b>
+                <small>{s.detail}</small>
+              </td>
+              <td>Camera</td>
+              <td>
+                <LinkBadge link={s.link} />
+              </td>
+              <td>
+                <span className={`status status-${s.status}`}>{s.status}</span>
+              </td>
+              <td className="num mono">{s.latency !== undefined ? `${s.latency} ms` : '—'}</td>
+              <td className="num">
+                <button className="icon-btn" aria-label={`Remove ${s.name}`} disabled={recording} title={recording ? 'Stop recording first' : undefined} onClick={() => removeSource(s.id)}>
+                  <Icon name="trash" size={13} />
+                </button>
+              </td>
+            </tr>
           ))}
-        </nav>
+          {channels.map((c, i) => (
+            <tr key={c.id}>
+              <td className="mono">A{i + 1}</td>
+              <td>
+                <b>{c.name}</b>
+                <small>{c.detail}</small>
+              </td>
+              <td>Microphone</td>
+              <td>
+                <LinkBadge link={c.link} />
+              </td>
+              <td>
+                <span className={`status status-${c.status}`}>{c.status}</span>
+              </td>
+              <td className="num mono">{c.latency !== undefined ? `${c.latency} ms` : '—'}</td>
+              <td className="num">
+                <button className="icon-btn" aria-label={`Remove ${c.name}`} disabled={recording} title={recording ? 'Stop recording first' : undefined} onClick={() => removeChannel(c.id)}>
+                  <Icon name="trash" size={13} />
+                </button>
+              </td>
+            </tr>
+          ))}
+          {accessories.map((a) => (
+            <tr key={a.id}>
+              <td className="mono">—</td>
+              <td>
+                <b>{a.name}</b>
+                <small>{a.detail}</small>
+              </td>
+              <td>Accessory</td>
+              <td>
+                <LinkBadge link={a.link} />
+              </td>
+              <td>
+                <span className={`status status-${a.status === 'connected' ? 'live' : 'lost'}`}>{a.status}</span>
+              </td>
+              <td className="num mono">{a.battery !== undefined ? `${Math.round(a.battery)}% batt.` : '—'}</td>
+              <td className="num">
+                <button className="icon-btn" aria-label={`Forget ${a.name}`} onClick={() => store.set((st) => ({ accessories: st.accessories.filter((x) => x.id !== a.id) }))}>
+                  <Icon name="trash" size={13} />
+                </button>
+              </td>
+            </tr>
+          ))}
+          {!sources.length && !channels.length && !accessories.length && (
+            <tr>
+              <td colSpan={7} className="empty-row">
+                Nothing connected yet. Add devices below, or load the demo.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** Setup → Devices: what's connected, and every way to add more. */
+export function DevicesSection() {
+  const tab = useStore((s) => s.addTab)
+  return (
+    <>
+      <h3 className="set-h">Connected</h3>
+      <Connected />
+      <h3 className="set-h">Add a device</h3>
+      <nav className="tabs" role="tablist">
+        {TABS.map((t) => (
+          <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'is-on' : ''} onClick={() => store.set({ addTab: t.id })}>
+            <Icon name={t.icon} size={14} />
+            {t.label}
+          </button>
+        ))}
+      </nav>
+      <div className="tab-panel">
         {tab === 'usb' && <UsbTab />}
         {tab === 'phone' && <PhoneTab />}
         {tab === 'url' && <UrlTab />}
         {tab === 'bluetooth' && <BluetoothTab />}
         {tab === 'screen' && <ScreenTab />}
       </div>
-    </div>
+    </>
   )
 }

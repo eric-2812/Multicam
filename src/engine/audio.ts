@@ -12,6 +12,7 @@ interface Strip {
   buf: Float32Array<ArrayBuffer>
   source?: MediaStreamAudioSourceNode
   stop?: () => void
+  tap?: MediaStreamAudioDestinationNode
 }
 
 /**
@@ -114,6 +115,18 @@ class AudioEngine {
     const fade = st.ftb ? 0 : 1
     this.master.gain.setTargetAtTime(st.master * st.master * fade, now, 0.05)
     this.monitor.gain.setTargetAtTime(st.listen ? 1 : 0, now, 0.03)
+  }
+
+  /**
+   * A channel's own signal (after sync delay, before fader/mute), for recording each mic
+   * to its own file — the editor gets clean, separately adjustable tracks.
+   */
+  channelStream(id: string) {
+    const s = this.strips.get(id)
+    if (!s || !this.ctx) return null
+    s.tap ??= this.ctx.createMediaStreamDestination()
+    s.delay.connect(s.tap)
+    return s.tap.stream
   }
 
   /** Sync beep (1 kHz, 1 frame-ish) straight into the program mix, so it lands in every recording. */

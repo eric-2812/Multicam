@@ -67,9 +67,27 @@ export function shutterLabel(den: number) {
 export function exposureModel(s: CamSettings, hw?: HwCaps) {
   const apEv = hw?.aperture ? 2 * Math.log2(2.8 / s.aperture) : 0
   const shEv = hw?.shutter ? Math.log2(50 / s.shutter) : 0
-  const lensEv = apEv + shEv
-  const isoStops = Math.max(0, Math.min(7, -lensEv))
-  const iso = Math.round((100 * Math.pow(2, isoStops)) / 10) * 10
+  const ndEv = hw?.nd ? -s.nd : 0
+  const lensEv = apEv + shEv + ndEv
+  const isoStops = s.autoExposure ? Math.max(0, Math.min(7, -lensEv)) : Math.max(0, Math.min(7, Math.log2(s.iso / 100)))
+  const iso = s.autoExposure ? Math.round((100 * Math.pow(2, isoStops)) / 10) * 10 : s.iso
   const residual = lensEv + isoStops
-  return { iso, isoStops, ev: residual + s.exposure }
+  return { iso, isoStops, ev: residual + s.exposure, lensEv }
 }
+
+export const ISO_STOPS: Stop[] = [100, 200, 400, 800, 1600, 3200, 6400, 12800].map((v) => ({ v, label: `${v}` }))
+export const ND_STEPS = [0, 2, 4, 6]
+export const ND_LABEL: Record<number, string> = { 0: 'Clear', 2: 'ND 0.6', 4: 'ND 1.2', 6: 'ND 1.8' }
+
+/** Shutter angle for a 1/x shutter at a frame rate (180° is the cinematic norm). */
+export function shutterAngle(den: number, fps: number) {
+  return Math.round((360 * fps) / den)
+}
+
+export const WB_PRESETS: { label: string; k: number }[] = [
+  { label: 'Tungsten', k: 3200 },
+  { label: 'Fluor.', k: 4000 },
+  { label: 'Daylight', k: 5600 },
+  { label: 'Cloudy', k: 6500 },
+  { label: 'Shade', k: 7500 },
+]

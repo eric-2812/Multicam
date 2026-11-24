@@ -172,21 +172,35 @@ function MasterStrip() {
 
 export function Mixer() {
   const channels = useStore((s) => s.channels)
+  const open = useStore((s) => s.mixerOpen)
+  const recMics = useStore((s) => s.rec.mics)
+  const recording = useStore((s) => !!s.recordingSince)
   return (
-    <section className="mixer" aria-label="Audio mixer">
-      <div className="mixer-strips">
-        {channels.map((c) => (
-          <Strip key={c.id} ch={c} />
-        ))}
-        <button
-          className="strip strip-add"
-          onClick={() => store.set({ addOpen: true, addTab: 'usb' })}
-        >
-          <Icon name="mic" size={20} />
-          Add mic
+    <div className="mixer">
+      <header className="mixer-head">
+        <button className="sec-toggle" aria-expanded={open} onClick={() => store.set({ mixerOpen: !open })}>
+          <Icon name="chevron" size={14} className="sec-chev" />
+          Audio
         </button>
-      </div>
-      <MasterStrip />
-    </section>
+        <span className="mixer-note">
+          {channels.length} {channels.length === 1 ? 'mic' : 'mics'}
+          {recMics ? ` · each recorded to its own file${recording ? ' (recording)' : ''}` : ' · mix only'}
+        </span>
+      </header>
+      {open && (
+        <div className="mixer-body">
+          <div className="mixer-strips">
+            {channels.map((c) => (
+              <Strip key={c.id} ch={c} />
+            ))}
+            <button className="strip strip-add" onClick={() => store.set({ page: 'setup', setupSection: 'devices', addTab: 'usb' })}>
+              <Icon name="plus" size={16} />
+              Add mic
+            </button>
+          </div>
+          <MasterStrip />
+        </div>
+      )}
+    </div>
   )
 }

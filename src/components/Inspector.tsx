@@ -1,15 +1,33 @@
 import { useEffect, useRef, useState } from 'react'
-import { applyHardware, removeSource } from '../engine/devices'
+import { applyHardware, removeSource, setMode } from '../engine/devices'
+import {
+  FOCUS_STOPS,
+  ISO_STOPS,
+  ND_LABEL,
+  ND_STEPS,
+  WB_PRESETS,
+  apertureStops,
+  exposureModel,
+  focusLabel,
+  posOf,
+  shutterAngle,
+  shutterLabel,
+  shutterStops,
+  subjectFocus,
+  valueAt,
+} from '../engine/lens'
 import { sendToPhone } from '../engine/phone'
-import { store, updateSettings, updateSource, useStore } from '../store'
-import { DEFAULT_SETTINGS, type CamSettings, type VideoSource } from '../types'
-import { FOCUS_STOPS, apertureStops, exposureModel, focusLabel, posOf, shutterLabel, shutterStops, subjectFocus, valueAt } from '../engine/lens'
-import { Battery, Icon, LinkBadge, Signal } from './Icon'
+import { store, toast, updateSettings, updateSource, useStore } from '../store'
+import { DEFAULT_SETTINGS, type CamSettings, type Profile, type VideoSource } from '../types'
+import { Battery, Icon, LINK_LABEL, Signal } from './Icon'
 import { LensRing } from './LensRing'
+import { Row, Section, Seg, Slide, Switch } from './ui'
+
+const HW_KEYS: (keyof CamSettings)[] = ['zoom', 'torch', 'focus', 'autoFocus', 'shutter', 'iso', 'autoExposure', 'exposure', 'whiteBalance', 'autoWhiteBalance', 'sharpness']
 
 function set(src: VideoSource, patch: Partial<CamSettings>) {
   updateSettings(src.id, patch)
-  if (['zoom', 'torch', 'focus', 'autoFocus', 'shutter'].some((k) => k in patch)) {
+  if (HW_KEYS.some((k) => k in patch)) {
     const next = store.get().sources.find((s) => s.id === src.id)
     if (next) applyHardware(next)
   }
@@ -111,265 +129,381 @@ function PtzPad({ src }: { src: VideoSource }) {
   )
 }
 
-function Slider(props: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step: number
-  format: (v: number) => string
-  onChange: (v: number) => void
-  disabled?: boolean
-  center?: number
-}) {
-  return (
-    <label className={`slider ${props.disabled ? 'is-disabled' : ''}`}>
-      <span className="slider-head">
-        <span>{props.label}</span>
-        <output>{props.format(props.value)}</output>
-      </span>
-      <input
-        type="range"
-        min={props.min}
-        max={props.max}
-        step={props.step}
-        value={props.value}
-        disabled={props.disabled}
-        onChange={(e) => props.onChange(Number(e.target.value))}
-        onDoubleClick={() => props.center !== undefined && props.onChange(props.center)}
-      />
-    </label>
-  )
-}
-
-export function Inspector() {
-  const selected = useStore((s) => s.selected)
-  const src = useStore((s) => s.sources.find((x) => x.id === s.selected))
-  const program = useStore((s) => s.program)
-  const [storing, setStoring] = useState(false)
-
-  useEffect(() => setStoring(false), [selected])
-
-  if (!src) {
-    return (
-      <aside className="inspector inspector-empty">
-        <Icon name="cam" size={28} />
-        <p>Select a camera to control it.</p>
-      </aside>
-    )
-  }
-  const s = src.settings
-  const zoomKind = src.kind === 'demo' ? (src.ptz ? 'optical' : 'lens') : src.hw?.zoom ? 'hardware' : 'digital'
-  const res = src.hw?.width ? `${src.hw.width}×${src.hw.height}${src.hw.fps ? ` · ${src.hw.fps}fps` : ''}` : src.kind === 'demo' ? '1920×1080 · 30fps' : ''
-
-  return (
-    <aside className="inspector" aria-label={`${src.name} controls`}>
-      <div className="insp-head">
-        <input className="insp-name" value={src.name} onChange={(e) => updateSource(src.id, { name: e.target.value })} aria-label="Camera name" />
-        <div className="insp-meta">
-          <LinkBadge link={src.link} />
-          {src.signal !== undefined && <Signal bars={src.status === 'live' ? src.signal : 0} />}
-          {src.battery !== undefined && <Battery level={src.battery} />}
-          {program === src.id && <span className="tally-tag pgm">ON AIR</span>}
-        </div>
-        <p className="insp-detail">
-          {src.detail}
-          {res && <span> · {res}</span>}
-        </p>
-        {src.status !== 'live' && <p className="insp-warn">{src.status === 'lost' ? 'Signal lost — waiting for the device to come back.' : 'Connecting…'}</p>}
-        {src.tainted && <p className="insp-warn">This network stream blocks capture (no CORS headers): it can be shown, but recordings and stills will fail while it is used.</p>}
-      </div>
-
-      <div className="insp-section">
-        <h3>{src.ptz ? 'Pan / tilt' : 'Reframe'}</h3>
-        <div className="ptz">
-          <PtzPad src={src} />
-          <div className="ptz-side">
-            <Slider label={`Zoom · ${zoomKind}`} value={s.zoom} min={1} max={4} step={0.01} format={(v) => `${v.toFixed(1)}×`} onChange={(v) => set(src, { zoom: v })} center={1} />
-            <button className="btn btn-ghost btn-sm" onClick={() => recall(src, { zoom: 1, pan: 0, tilt: 0 })}>
-              Home
-            </button>
-          </div>
-        </div>
-        {!src.ptz && s.zoom <= 1.01 && <p className="hint">Zoom in to reframe inside the picture.</p>}
-        <div className="presets">
-          {src.presets.map((p, i) => (
-            <button
-              key={i}
-              className={`preset ${p ? 'has' : ''} ${storing ? 'storing' : ''}`}
-              onClick={() => {
-                if (storing) {
-                  const presets = [...src.presets]
-                  presets[i] = { zoom: s.zoom, pan: s.pan, tilt: s.tilt }
-                  updateSource(src.id, { presets })
-                  setStoring(false)
-                } else if (p) recall(src, p)
-              }}
-              title={storing ? `Store preset ${i + 1}` : p ? `Recall preset ${i + 1}` : 'Empty — press Store first'}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button className={`preset preset-store ${storing ? 'is-on' : ''}`} onClick={() => setStoring((v) => !v)}>
-            {storing ? 'Pick…' : 'Store'}
-          </button>
-        </div>
-      </div>
-
-      <LensSection src={src} />
-
-      <div className="insp-section">
-        <h3>Image</h3>
-        <Slider label="Exposure" value={s.exposure} min={-2} max={2} step={0.1} format={(v) => `${v > 0 ? '+' : ''}${v.toFixed(1)} EV`} onChange={(v) => set(src, { exposure: v })} center={0} />
-        <Slider label="White balance" value={s.whiteBalance} min={2800} max={7500} step={50} format={(v) => `${v} K`} onChange={(v) => set(src, { whiteBalance: v })} center={5600} />
-        <Slider label="Saturation" value={s.saturation} min={0} max={2} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => set(src, { saturation: v })} center={1} />
-        <Slider label="Contrast" value={s.contrast} min={0.5} max={1.5} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => set(src, { contrast: v })} center={1} />
-        <div className="row">
-          <button className={`chip ${s.mirror ? 'is-on' : ''}`} onClick={() => set(src, { mirror: !s.mirror })} aria-pressed={s.mirror}>
-            Mirror
-          </button>
-          {src.hw?.torch && (
-            <button className={`chip ${s.torch ? 'is-on' : ''}`} onClick={() => set(src, { torch: !s.torch })} aria-pressed={s.torch}>
-              <Icon name="flash" size={12} /> Torch
-            </button>
-          )}
-          {src.kind === 'phone' && (
-            <button className="chip" onClick={() => sendToPhone(src.id, { type: 'flip' })}>
-              <Icon name="flip" size={12} /> Flip camera
-            </button>
-          )}
-          <span className="grow" />
-          <button className="btn btn-ghost btn-sm" onClick={() => set(src, { exposure: DEFAULT_SETTINGS.exposure, whiteBalance: DEFAULT_SETTINGS.whiteBalance, saturation: 1, contrast: 1, mirror: false })}>
-            Reset image
-          </button>
-        </div>
-        <p className="hint">Double-click a slider to reset it.</p>
-      </div>
-
-      <Accessories />
-
-      <div className="insp-foot">
-        <button className="btn btn-danger btn-sm" onClick={() => removeSource(src.id)}>
-          <Icon name="trash" size={14} /> Remove camera
-        </button>
-      </div>
-    </aside>
-  )
-}
 
 const FOCUS_MAX = FOCUS_STOPS.length - 1
+
+function CameraSection({ src }: { src: VideoSource }) {
+  const s = src.settings
+  const modes = src.hw?.modes ?? []
+  const cur = src.hw?.height ? `${src.hw.width}x${src.hw.height}` : ''
+  const curMode = modes.find((m) => `${m.w}x${m.h}` === cur)
+  return (
+    <Section
+      id="camera"
+      title="Camera"
+      aside={
+        <span className="sec-meta">
+          {src.signal !== undefined && <Signal bars={src.status === 'live' ? src.signal : 0} />}
+          {src.battery !== undefined && <Battery level={src.battery} />}
+        </span>
+      }
+    >
+      <Row label="Name" htmlFor="cam-name">
+        <input id="cam-name" className="inp" value={src.name} onChange={(e) => updateSource(src.id, { name: e.target.value })} />
+      </Row>
+      <Row label="Number" htmlFor="cam-num" hint="Used on tiles, slates, file names and the 1–9 keys">
+        <input
+          id="cam-num"
+          className="inp inp-num"
+          type="number"
+          min={1}
+          max={99}
+          value={src.number}
+          onChange={(e) => {
+            const n = Math.max(1, Math.min(99, Number(e.target.value) || 1))
+            if (store.get().sources.some((x) => x.id !== src.id && x.number === n)) return toast(`Camera ${n} is already taken`, 'bad')
+            updateSource(src.id, { number: n })
+          }}
+        />
+      </Row>
+      <Row label="Connection">
+        <span className="ro">
+          {LINK_LABEL[src.link]} · {src.detail}
+        </span>
+      </Row>
+      {modes.length > 0 && (
+        <>
+          <Row label="Resolution" htmlFor="cam-res">
+            <select
+              id="cam-res"
+              className="inp"
+              value={curMode ? cur : ''}
+              onChange={(e) => {
+                const m = modes.find((x) => `${x.w}x${x.h}` === e.target.value)
+                if (m) void setMode(src, m.w, m.h, m.fps.includes(src.hw?.fps ?? 0) ? src.hw!.fps! : m.fps[m.fps.length - 1])
+              }}
+            >
+              {!curMode && <option value="">{src.hw?.width ? `${src.hw.width}×${src.hw.height}` : 'Auto'}</option>}
+              {modes.map((m) => (
+                <option key={`${m.w}x${m.h}`} value={`${m.w}x${m.h}`}>
+                  {m.h >= 2160 ? '4K UHD' : `${m.h}p`} · {m.w}×{m.h}
+                </option>
+              ))}
+            </select>
+          </Row>
+          <Row label="Frame rate">
+            <Seg
+              label="Frame rate"
+              value={src.hw?.fps ?? 30}
+              options={(curMode?.fps ?? modes[0].fps).map((f) => ({ v: f, label: String(f) }))}
+              onChange={(f) => void setMode(src, src.hw?.width ?? 1920, src.hw?.height ?? 1080, f)}
+            />
+          </Row>
+        </>
+      )}
+      <Row label="Orientation">
+        <Seg
+          label="Rotation"
+          value={s.rotate}
+          options={([0, 90, 180, 270] as const).map((r) => ({ v: r, label: `${r}°` }))}
+          onChange={(r) => set(src, { rotate: r })}
+        />
+      </Row>
+      <Row label="Mirror">
+        <Switch label="Mirror" on={s.mirror} onChange={(v) => set(src, { mirror: v })} />
+      </Row>
+      {(src.hw?.torch || src.kind === 'phone') && (
+        <Row label="Phone">
+          <div className="row">
+            {src.hw?.torch && (
+              <button className={`chip ${s.torch ? 'is-on' : ''}`} aria-pressed={s.torch} onClick={() => set(src, { torch: !s.torch })}>
+                <Icon name="flash" size={12} /> Torch
+              </button>
+            )}
+            {src.kind === 'phone' && (
+              <button className="chip" onClick={() => sendToPhone(src.id, { type: 'flip' })}>
+                <Icon name="flip" size={12} /> Flip camera
+              </button>
+            )}
+          </div>
+        </Row>
+      )}
+      {src.status !== 'live' && <p className="warn">{src.status === 'lost' ? 'Signal lost — waiting for the device to come back.' : 'Connecting…'}</p>}
+      {src.tainted && <p className="warn">This network stream blocks capture (no CORS headers): it shows here but can't be recorded.</p>}
+    </Section>
+  )
+}
+
+function RecordSection({ src }: { src: VideoSource }) {
+  const hasRaw = src.kind !== 'demo' && src.kind !== 'url'
+  return (
+    <Section id="record" title="Recording" aside={<span className={`sec-meta ${src.rec.armed ? 'is-armed' : ''}`}>{src.rec.armed ? 'Armed' : 'Off'}</span>}>
+      <Row label="Record this camera" hint="Armed cameras each write their own file when you press REC">
+        <Switch label="Arm for recording" on={src.rec.armed} onChange={(v) => updateSource(src.id, { rec: { ...src.rec, armed: v } })} />
+      </Row>
+      <Row label="Feed">
+        <Seg
+          label="Recorded feed"
+          value={src.rec.feed}
+          disabled={!hasRaw}
+          options={[
+            { v: 'clean', label: 'Clean', title: 'The camera’s native picture at full resolution' },
+            { v: 'processed', label: 'Processed', title: 'With the image adjustments and sync delay from this app' },
+          ]}
+          onChange={(v) => updateSource(src.id, { rec: { ...src.rec, feed: v } })}
+        />
+      </Row>
+      <p className="hint">
+        {src.rec.feed === 'clean'
+          ? 'Full-resolution camera signal. Hardware settings (focus, shutter, white balance…) are baked in; digital adjustments are not.'
+          : 'Records what you see here, including digital image adjustments and the lip-sync delay.'}
+        {src.kind === 'phone' ? ' The phone also records its own full-quality copy.' : ''}
+        {!hasRaw ? ' Simulated and network cameras have no separate clean signal, so they always record processed.' : ''}
+      </p>
+    </Section>
+  )
+}
 
 function LensSection({ src }: { src: VideoSource }) {
   const s = src.settings
   const hw = src.hw ?? {}
   const sim = src.kind === 'demo'
   const subject = sim ? subjectFocus(src) : undefined
-  if (!hw.focus && !hw.aperture && !hw.shutter) {
-    return (
-      <div className="insp-section">
-        <h3>Lens</h3>
-        <p className="hint">
-          This camera doesn’t offer remote focus, iris or shutter control
-          {sim ? '.' : ' to the browser — they only appear when the camera’s driver exposes them (common on phones and some USB webcams).'}
-        </p>
-      </div>
-    )
-  }
   const shown = s.autoFocus && subject !== undefined ? subject : s.focus
   const ap = hw.aperture ? apertureStops(hw.aperture) : null
-  const sh = hw.shutter ? shutterStops(hw.shutter) : null
-  const exp = sim ? exposureModel(s, hw) : null
+  const [storing, setStoring] = useState(false)
+  useEffect(() => setStoring(false), [src.id])
+  const zoomKind = sim ? (src.ptz ? 'optical' : 'lens') : hw.zoom ? 'hardware' : 'digital'
   return (
-    <div className="insp-section">
-      <h3>
-        Lens
-        {exp && (
-          <span className={`iso ${exp.isoStops >= 7 ? 'is-max' : ''}`} title="Auto-ISO compensates for iris and shutter">
-            ISO {exp.iso} auto
-          </span>
-        )}
-      </h3>
-      {hw.focus && (
+    <Section id="lens" title={src.ptz ? 'Lens & PTZ' : 'Lens & framing'}>
+      <div className="ptz">
+        <PtzPad src={src} />
+        <div className="ptz-side">
+          <Slide label={`Zoom (${zoomKind})`} value={s.zoom} min={1} max={4} step={0.01} format={(v) => `${v.toFixed(1)}×`} onChange={(v) => set(src, { zoom: v })} reset={1} id="zoom" />
+          <button className="btn btn-sm" onClick={() => recall(src, { zoom: 1, pan: 0, tilt: 0 })}>
+            Home
+          </button>
+          {!src.ptz && s.zoom <= 1.01 && <p className="hint">Zoom in to reframe inside the picture.</p>}
+        </div>
+      </div>
+      <div className="presets" role="group" aria-label="Presets">
+        {src.presets.map((p, i) => (
+          <button
+            key={i}
+            className={`preset ${p ? 'has' : ''} ${storing ? 'storing' : ''}`}
+            onClick={() => {
+              if (storing) {
+                const presets = [...src.presets]
+                presets[i] = { zoom: s.zoom, pan: s.pan, tilt: s.tilt }
+                updateSource(src.id, { presets })
+                setStoring(false)
+              } else if (p) recall(src, p)
+            }}
+            title={storing ? `Store preset ${i + 1}` : p ? `Recall preset ${i + 1}` : 'Empty — press Store first'}
+          >
+            {i + 1}
+          </button>
+        ))}
+        <button className={`preset preset-store ${storing ? 'is-on' : ''}`} onClick={() => setStoring((v) => !v)}>
+          {storing ? 'Pick' : 'Store'}
+        </button>
+      </div>
+      {hw.focus ? (
         <>
-          <div className="ring-tools">
-            <button
-              className={`chip ${s.autoFocus ? 'is-on' : ''}`}
-              aria-pressed={s.autoFocus}
-              onClick={() => set(src, s.autoFocus ? { autoFocus: false, focus: shown } : { autoFocus: true })}
-            >
-              AF
-            </button>
-            <span className="hint">{s.autoFocus ? 'Autofocus on — tap AF to pull focus by hand' : 'Manual focus'}</span>
-          </div>
+          <Row label="Autofocus">
+            <Switch label="Autofocus" on={s.autoFocus} onChange={(v) => set(src, v ? { autoFocus: true } : { autoFocus: false, focus: shown })} />
+          </Row>
           <LensRing
             label="Focus"
             stops={FOCUS_STOPS}
             pos={shown * FOCUS_MAX}
             onPos={(p) => set(src, { focus: p / FOCUS_MAX, autoFocus: false })}
-            readout={
-              sim
-                ? s.autoFocus
-                  ? `AF · ${focusLabel(shown)}`
-                  : focusLabel(s.focus)
-                : s.autoFocus
-                  ? 'AF'
-                  : `${(hw.focus[0] + s.focus * (hw.focus[1] - hw.focus[0])).toFixed(2)} m`
-            }
+            readout={sim ? (s.autoFocus ? `AF · ${focusLabel(shown)}` : focusLabel(s.focus)) : s.autoFocus ? 'AF' : `${(hw.focus[0] + s.focus * (hw.focus[1] - hw.focus[0])).toFixed(2)} m`}
             marker={subject !== undefined ? subject * FOCUS_MAX : undefined}
           />
         </>
+      ) : (
+        <p className="hint">No remote focus on this camera.</p>
       )}
-      {ap && (
-        <LensRing
-          label="Aperture"
-          stops={ap}
-          pos={posOf(ap, s.aperture)}
-          onPos={(p) => set(src, { aperture: Math.round(valueAt(ap, p) * 10) / 10 })}
-          readout={`f/${s.aperture.toFixed(1)}`}
-          accent="#7fd8ff"
-        />
+      {ap ? (
+        <LensRing label="Iris" stops={ap} pos={posOf(ap, s.aperture)} onPos={(p) => set(src, { aperture: Math.round(valueAt(ap, p) * 10) / 10 })} readout={`f/${s.aperture.toFixed(1)}`} />
+      ) : (
+        <p className="hint">Fixed iris (browsers don't expose aperture on webcams and phones).</p>
       )}
-      {sh && (
-        <LensRing
-          label="Shutter"
-          stops={sh}
-          pos={posOf(sh, s.shutter)}
-          onPos={(p) => set(src, { shutter: valueAt(sh, p) })}
-          readout={shutterLabel(s.shutter)}
-          detent
-          accent="#c4a6ff"
-        />
-      )}
-      {sim && hw.focus && <p className="hint">The amber mark on the focus ring is where the subject is. Open the iris for shallower depth of field; slow shutters add motion blur.</p>}
-    </div>
+    </Section>
   )
 }
 
-function Accessories() {
-  const acc = useStore((s) => s.accessories)
-  if (!acc.length) return null
+function ExposureSection({ src }: { src: VideoSource }) {
+  const s = src.settings
+  const hw = src.hw ?? {}
+  const fps = useStore((st) => st.fps)
+  const sim = src.kind === 'demo'
+  const exp = sim ? exposureModel(s, hw) : null
+  const sh = hw.shutter ? shutterStops(hw.shutter) : null
+  const isoStops = hw.iso ? ISO_STOPS.filter((x) => x.v >= hw.iso![0] && x.v <= hw.iso![1]) : null
+  const angle = shutterAngle(s.shutter, hw.fps ?? fps)
+  const manualAvailable = !!(sh || isoStops)
   return (
-    <div className="insp-section">
-      <h3>Accessories</h3>
-      <ul className="acc-list">
-        {acc.map((a) => (
-          <li key={a.id} className={a.status === 'lost' ? 'is-down' : ''}>
-            <LinkBadge link={a.link} />
-            <span className="acc-name">
-              {a.name}
-              <small>{a.status === 'lost' ? 'Disconnected' : a.detail}</small>
-            </span>
-            {a.battery !== undefined && <Battery level={a.battery} />}
-            <button
-              className="icon-btn"
-              aria-label={`Forget ${a.name}`}
-              onClick={() => store.set((st) => ({ accessories: st.accessories.filter((x) => x.id !== a.id) }))}
-            >
-              <Icon name="close" size={12} />
-            </button>
-          </li>
-        ))}
-      </ul>
+    <Section id="exposure" title="Exposure" aside={exp ? <span className="sec-meta mono">ISO {exp.iso}</span> : undefined}>
+      {manualAvailable && (
+        <Row label="Mode">
+          <Seg
+            label="Exposure mode"
+            value={s.autoExposure ? 'auto' : 'manual'}
+            options={[
+              { v: 'auto', label: 'Auto' },
+              { v: 'manual', label: 'Manual' },
+            ]}
+            onChange={(v) => set(src, v === 'auto' ? { autoExposure: true } : { autoExposure: false, iso: exp ? exp.iso : s.iso })}
+          />
+        </Row>
+      )}
+      {sh && (
+        <>
+          <LensRing label="Shutter" stops={sh} pos={posOf(sh, s.shutter)} onPos={(p) => set(src, { shutter: valueAt(sh, p) })} readout={`${shutterLabel(s.shutter)} · ${angle}°`} detent />
+          {Math.abs(angle - 180) > 40 && <p className="hint">180° (1/{(hw.fps ?? fps) * 2}) gives natural motion blur at {hw.fps ?? fps} fps.</p>}
+        </>
+      )}
+      {isoStops && isoStops.length > 1 && (
+        <LensRing
+          label="ISO"
+          stops={isoStops}
+          pos={posOf(isoStops, s.autoExposure && exp ? exp.iso : s.iso)}
+          onPos={(p) => set(src, { iso: Math.round(valueAt(isoStops, Math.round(p))), autoExposure: false })}
+          readout={s.autoExposure ? `Auto · ${exp?.iso ?? '—'}` : String(s.iso)}
+          detent
+          disabled={s.autoExposure}
+        />
+      )}
+      {hw.nd && (
+        <Row label="ND filter">
+          <Seg label="ND filter" value={s.nd} options={ND_STEPS.map((n) => ({ v: n, label: ND_LABEL[n] }))} onChange={(n) => set(src, { nd: n })} />
+        </Row>
+      )}
+      <Slide
+        label={hw.ev ? 'Exposure comp. (camera)' : 'Exposure comp.'}
+        value={s.exposure}
+        min={-2}
+        max={2}
+        step={0.1}
+        format={(v) => `${v > 0 ? '+' : ''}${v.toFixed(1)} EV`}
+        onChange={(v) => set(src, { exposure: v })}
+        reset={0}
+        id="ev"
+      />
+      {exp && exp.ev > 1.2 && <p className="warn">Overexposed by {exp.ev.toFixed(1)} stops — close the iris, use ND or a faster shutter.</p>}
+      {exp && exp.ev < -1.2 && <p className="warn">Underexposed by {(-exp.ev).toFixed(1)} stops — open the iris, lower ND, slow the shutter or raise ISO.</p>}
+    </Section>
+  )
+}
+
+const PROFILES: { v: Profile; label: string }[] = [
+  { v: 'standard', label: 'Standard' },
+  { v: 'flat', label: 'Flat' },
+  { v: 'vivid', label: 'Vivid' },
+  { v: 'mono', label: 'Mono' },
+]
+
+const COLOR_KEYS: (keyof CamSettings)[] = ['whiteBalance', 'autoWhiteBalance', 'tint', 'profile', 'saturation', 'contrast', 'sharpness', 'exposure']
+
+function ColorSection({ src }: { src: VideoSource }) {
+  const s = src.settings
+  const hw = src.hw ?? {}
+  return (
+    <Section id="color" title="Colour & image">
+      <Row label="White balance">
+        <Seg
+          label="White balance mode"
+          value={s.autoWhiteBalance ? 'auto' : 'manual'}
+          options={[
+            { v: 'auto', label: 'Auto' },
+            { v: 'manual', label: 'Manual' },
+          ]}
+          onChange={(v) => set(src, { autoWhiteBalance: v === 'auto' })}
+        />
+      </Row>
+      {!s.autoWhiteBalance && (
+        <>
+          <div className="wb-presets" role="group" aria-label="White balance presets">
+            {WB_PRESETS.map((p) => (
+              <button key={p.k} className={`chip ${s.whiteBalance === p.k ? 'is-on' : ''}`} onClick={() => set(src, { whiteBalance: p.k })}>
+                {p.label} <span className="mono">{p.k}</span>
+              </button>
+            ))}
+          </div>
+          <Slide label="Kelvin" value={s.whiteBalance} min={hw.wb?.[0] ?? 2800} max={hw.wb?.[1] ?? 7500} step={50} format={(v) => `${v} K`} onChange={(v) => set(src, { whiteBalance: v })} reset={5600} id="kelvin" />
+        </>
+      )}
+      <Slide label="Tint" value={s.tint} min={-50} max={50} step={1} format={(v) => (v === 0 ? '0' : v < 0 ? `G${-v}` : `M${v}`)} onChange={(v) => set(src, { tint: v })} reset={0} id="tint" />
+      <Row label="Profile">
+        <Seg label="Picture profile" value={s.profile} options={PROFILES} onChange={(v) => set(src, { profile: v })} />
+      </Row>
+      <Slide label="Saturation" value={s.saturation} min={0} max={2} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => set(src, { saturation: v })} reset={1} id="sat" />
+      <Slide label="Contrast" value={s.contrast} min={0.5} max={1.5} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => set(src, { contrast: v })} reset={1} id="con" />
+      {hw.sharpness && <Slide label="Sharpness" value={s.sharpness} min={0} max={1} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => set(src, { sharpness: v })} reset={0.5} id="sharp" />}
+      <div className="row sec-actions">
+        <button
+          className="btn btn-sm"
+          onClick={() => {
+            const patch = Object.fromEntries(COLOR_KEYS.map((k) => [k, s[k]])) as Partial<CamSettings>
+            store.get().sources.forEach((x) => x.id !== src.id && set(x, patch))
+            toast(`Colour from ${src.name} copied to all cameras`, 'good')
+          }}
+        >
+          <Icon name="copy" size={13} /> Match all cameras
+        </button>
+        <button
+          className="btn btn-sm btn-ghost"
+          onClick={() => set(src, Object.fromEntries(COLOR_KEYS.map((k) => [k, DEFAULT_SETTINGS[k]])) as Partial<CamSettings>)}
+        >
+          Reset
+        </button>
+      </div>
+    </Section>
+  )
+}
+
+export function Inspector() {
+  const src = useStore((s) => s.sources.find((x) => x.id === s.selected) ?? s.sources[0])
+  const recording = useStore((s) => !!s.recordingSince)
+  if (!src) {
+    return (
+      <div className="insp-empty">
+        <Icon name="cam" size={22} />
+        <p>Select a camera to adjust it.</p>
+      </div>
+    )
+  }
+  return (
+    <div className="insp" key={src.id}>
+      <header className="insp-head">
+        <span className="t-num">{src.number}</span>
+        <h2>{src.name}</h2>
+        <button className="icon-btn only-tablet" aria-label="Close camera settings" onClick={() => store.set({ inspectorOpen: false })}>
+          <Icon name="close" size={14} />
+        </button>
+      </header>
+      <div className="insp-body">
+        <CameraSection src={src} />
+        <RecordSection src={src} />
+        <LensSection src={src} />
+        <ExposureSection src={src} />
+        <ColorSection src={src} />
+        <div className="insp-foot">
+          <button
+            className="btn btn-sm btn-danger"
+            disabled={recording}
+            title={recording ? 'Stop recording before removing a camera' : undefined}
+            onClick={() => {
+              removeSource(src.id)
+              toast(`${src.name} removed`, 'info')
+            }}
+          >
+            <Icon name="trash" size={13} /> Remove camera
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

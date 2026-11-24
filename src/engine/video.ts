@@ -4,7 +4,7 @@ import type { VideoSource } from '../types'
 import { audio } from './audio'
 import { setSceneTime } from '../demo/voices'
 import { exposureModel, subjectFocus } from './lens'
-import { masterTC, nowMs, runTC, stamp, todTC } from './timecode'
+import { masterTC, nowMs, stamp } from './timecode'
 
 export const FRAME_W = 960
 export const FRAME_H = 540
@@ -56,18 +56,7 @@ class FrameDelay {
   }
 }
 
-/** One ISO (per-camera) recorder. */
-interface IsoRec {
-  rec: MediaRecorder
-  name: string
-}
 
-export interface CutEvent {
-  ms: number
-  id: string
-  name: string
-  kind: 'cut' | 'slate'
-}
 
 function mediaSize(m: HTMLVideoElement | HTMLImageElement): [number, number] {
   if (m instanceof HTMLVideoElement) return [m.videoWidth, m.videoHeight]
@@ -106,6 +95,21 @@ function bars(ctx: CanvasRenderingContext2D, w: number, h: number, label: string
   ctx.textBaseline = 'alphabetic'
 }
 
+/** Picture profiles: multipliers on brightness, contrast and saturation. */
+const PROFILES = {
+  standard: { b: 1, c: 1, s: 1 },
+  flat: { b: 1.06, c: 0.78, s: 0.8 },
+  vivid: { b: 1, c: 1.14, s: 1.35 },
+  mono: { b: 1, c: 1.08, s: 0 },
+} as const
+
+function makeCanvas(w: number, h: number) {
+  const c = document.createElement('canvas')
+  c.width = w
+  c.height = h
+  return c
+}
+
 let scratchCanvas: HTMLCanvasElement | null = null
 function scratch() {
   if (!scratchCanvas) {
@@ -136,15 +140,12 @@ function grain() {
 
 class VideoEngine {
   private runtimes = new Map<string, Runtime>()
-  private monitors: { program?: HTMLCanvasElement; preview?: HTMLCanvasElement } = {}
+  /** Program and preview are always composed (so the program can record from any page). */
+  private monitors = { program: makeCanvas(PGM_W, PGM_H), preview: makeCanvas(640, 360) }
   private raf = 0
   private autoStart = 0
   private ftbLevel = 0
   private ltLevel = 0
-  private recorder: MediaRecorder | null = null
-  private isos: IsoRec[] = []
-  private cutLog: CutEvent[] = []
-  private lastProgram: string | null = null
   private slateUntil = 0
   private lastLatencyPush = 0
 
@@ -165,9 +166,11 @@ class VideoEngine {
     return this.runtime(id).canvas
   }
 
-  setMonitor(which: 'program' | 'preview', c: HTMLCanvasElement | null) {
-    this.monitors[which] = c ?? undefined
+  /** Canvas elements for the program / preview monitors; the UI mounts them directly. */
+  monitorEl(which: 'program' | 'preview') {
+    return this.monitors[which]
   }
+
 
   attachStream(id: string, stream: MediaStream, extra?: Partial<Runtime>) {
     const rt = this.runtime(id)
@@ -272,18 +275,14 @@ class VideoEngine {
         rt.onTally?.(tally)
       }
     }
-    if (st.program !== this.lastProgram) {
-      this.lastProgram = st.program
-      if (this.recorder && st.program) this.logEvent(st.program, 'cut')
-    }
     if (performance.now() - this.lastLatencyPush > 1000) {
       this.lastLatencyPush = performance.now()
       this.pushMeasuredLatency(st)
     }
     this.ftbLevel += ((st.ftb ? 1 : 0) - this.ftbLevel) * 0.12
     this.ltLevel += ((st.lowerThird.on ? 1 : 0) - this.ltLevel) * 0.15
-    if (this.monitors.program) this.composeProgram(this.monitors.program, st, t)
-    if (this.monitors.preview) this.composePreview(this.monitors.preview, st)
+    this.composeProgram(this.monitors.program, st, t)
+    if (st.view === 'switch' && st.page === 'live') this.composePreview(this.monitors.preview, st)
     audio.sync(st)
   }
 
@@ -359,11 +358,15 @@ class VideoEngine {
       // Slow shutters smear motion: blend over the previous frame.
       if (src.hw?.shutter) trail = Math.min(1, 0.2 + (0.8 * s.shutter) / 125)
     }
-    const bright = Math.pow(2, ev * 0.7)
+    const prof = PROFILES[s.profile]
+    const bright = Math.pow(2, ev * 0.7) * prof.b
+    const contrast = s.contrast * prof.c
+    const sat = s.saturation * prof.s
     const parts: string[] = []
     if (Math.abs(bright - 1) > 0.005) parts.push(`brightness(${bright.toFixed(3)})`)
-    if (s.contrast !== 1) parts.push(`contrast(${s.contrast})`)
-    if (s.saturation !== 1) parts.push(`saturate(${s.saturation})`)
+    if (Math.abs(contrast - 1) > 0.005) parts.push(`contrast(${contrast.toFixed(3)})`)
+    if (s.profile === 'mono') parts.push('grayscale(1)')
+    else if (Math.abs(sat - 1) > 0.005) parts.push(`saturate(${sat.toFixed(3)})`)
     if (blur > 0.25) parts.push(`blur(${blur.toFixed(2)}px)`)
 
     ctx.save()
@@ -377,7 +380,16 @@ class VideoEngine {
       ctx.translate(W, 0)
       ctx.scale(-1, 1)
     }
-    if (blur > 0.25) {
+    if (s.rotate) {
+      // Rotate about the centre; quarter turns are fitted inside the 16:9 frame.
+      ctx.fillStyle = '#000'
+      ctx.fillRect(0, 0, W, H)
+      ctx.translate(W / 2, H / 2)
+      ctx.rotate((s.rotate * Math.PI) / 180)
+      const q = s.rotate % 180 !== 0
+      const k = q ? H / W : 1
+      ctx.drawImage(pic, (-W / 2) * k, (-H / 2) * k, W * k, H * k)
+    } else if (blur > 0.25) {
       // Blur samples beyond the edge; overscan slightly so the border doesn't go dark.
       ctx.drawImage(pic, -blur * 2, -blur * 2, W + blur * 4, H + blur * 4)
     } else {
@@ -385,13 +397,23 @@ class VideoEngine {
     }
     ctx.restore()
 
-    // White balance: a higher Kelvin setting gives a warmer picture.
-    const wb = Math.max(-1, Math.min(1, (s.whiteBalance - 5600) / 2000))
-    if (Math.abs(wb) > 0.04) {
+    // White balance: a higher Kelvin setting gives a warmer picture. Cameras with their own
+    // white balance do it in hardware; auto WB on a simulated lens is neutral.
+    const digitalWb = !src.hw?.wb && !(sim && s.autoWhiteBalance)
+    const wb = digitalWb ? Math.max(-1, Math.min(1, (s.whiteBalance - 5600) / 2000)) : 0
+    if (Math.abs(wb) > 0.04 && s.profile !== 'mono') {
       ctx.save()
       ctx.globalCompositeOperation = 'soft-light'
       ctx.globalAlpha = Math.abs(wb) * 0.75
       ctx.fillStyle = wb > 0 ? '#ff8a2a' : '#2a7bff'
+      ctx.fillRect(0, 0, W, H)
+      ctx.restore()
+    }
+    if (Math.abs(s.tint) > 2 && s.profile !== 'mono') {
+      ctx.save()
+      ctx.globalCompositeOperation = 'soft-light'
+      ctx.globalAlpha = (Math.abs(s.tint) / 50) * 0.6
+      ctx.fillStyle = s.tint > 0 ? '#ff2bd6' : '#2bff6a'
       ctx.fillRect(0, 0, W, H)
       ctx.restore()
     }
@@ -640,130 +662,48 @@ class VideoEngine {
     }
   }
 
-  get isRecording() {
-    return !!this.recorder
+  /** The program output canvas (recording source for the switched program). */
+  get programCanvas() {
+    return this.monitors.program
   }
 
-  /** Flash + beep on every camera and in the mix, and log it — a clapperboard for syncing in post. */
-  slate() {
+  /** The camera's native stream, for clean recordings. */
+  rawStream(id: string) {
+    return this.runtimes.get(id)?.stream ?? null
+  }
+
+  /** White flash on every camera on the same frame (the visual half of a slate). */
+  flash() {
     this.slateUntil = performance.now() + 70
-    audio.slate()
-    const st = store.get()
-    if (this.recorder && st.program) this.logEvent(st.program, 'slate')
-    window.dispatchEvent(new CustomEvent('tally-slate'))
-    toast(`Slate at ${todTC(nowMs(), st.fps)}`, 'info')
-  }
-
-  private logEvent(id: string, kind: CutEvent['kind']) {
-    const name = store.get().sources.find((s) => s.id === id)?.name ?? id
-    this.cutLog.push({ ms: nowMs(), id, name, kind })
-  }
-
-  startRecording() {
-    const c = this.monitors.program
-    if (!c || this.recorder) return
-    const st = store.get()
-    try {
-      const stream = c.captureStream(30)
-      audio.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr))
-      const rec = new MediaRecorder(stream, { mimeType: pickMime(true), videoBitsPerSecond: 8_000_000 })
-      const since = nowMs()
-      const tag = stamp(since)
-      collect(rec, (blob, ext) => {
-        download(blob, `program-${tag}.${ext}`)
-        toast(`Recording saved (${ext.toUpperCase()})`, 'good')
-      })
-      // ISO: every live camera recorded on its own, all started on the same frame.
-      this.isos = st.iso
-        ? st.sources
-            .filter((s) => s.status === 'live')
-            .map((s) => {
-              const r = new MediaRecorder(this.runtime(s.id).canvas.captureStream(30), { mimeType: pickMime(false), videoBitsPerSecond: 5_000_000 })
-              const safe = s.name.replace(/[^\w-]+/g, '_')
-              collect(r, (blob, ext) => download(blob, `iso-${safe}-${tag}.${ext}`))
-              return { rec: r, name: s.name }
-            })
-        : []
-      rec.start(1000)
-      this.isos.forEach((i) => i.rec.start(1000))
-      this.recorder = rec
-      this.cutLog = []
-      store.set({ recordingSince: since })
-      if (st.program) this.logEvent(st.program, 'cut')
-      this.lastProgram = st.program
-    } catch (e) {
-      toast(`Could not start recording: ${(e as Error).message}`, 'bad')
-    }
-  }
-
-  stopRecording() {
-    const st = store.get()
-    const since = st.recordingSince
-    const end = nowMs()
-    this.recorder?.stop()
-    this.isos.forEach((i) => i.rec.state !== 'inactive' && i.rec.stop())
-    this.recorder = null
-    this.isos = []
-    store.set({ recordingSince: null })
-    if (since && this.cutLog.length) {
-      const tag = stamp(since)
-      download(new Blob([buildEdl(this.cutLog, since, end, st.fps, tag)], { type: 'text/plain' }), `program-${tag}.edl`)
-      download(new Blob([buildCsv(this.cutLog, since, st.fps)], { type: 'text/csv' }), `program-${tag}-cuts.csv`)
-    }
-  }
-}
-
-function pickMime(withAudio: boolean) {
-  const types = withAudio
-    ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
-    : ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm']
-  return types.find((m) => MediaRecorder.isTypeSupported(m)) ?? ''
-}
-
-function collect(rec: MediaRecorder, done: (b: Blob, ext: string) => void) {
-  const chunks: Blob[] = []
-  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data)
-  rec.onstop = () => {
-    const type = rec.mimeType || 'video/webm'
-    done(new Blob(chunks, { type }), type.includes('mp4') ? 'mp4' : 'webm')
   }
 }
 
 /**
- * CMX3600 edit decision list: source in/out are time-of-day timecode (matching the ISO files'
- * start stamp and the phones' synced clocks), record in/out run from 00:00:00:00.
+ * Save a blob as a download. Browsers silently drop downloads fired in quick succession,
+ * so they go through a queue with a short gap between each.
  */
-function buildEdl(log: CutEvent[], since: number, end: number, fps: 25 | 30, tag: string) {
-  const cuts = log.filter((e) => e.kind === 'cut')
-  const lines = [`TITLE: TALLY PROGRAM ${tag}`, 'FCM: NON-DROP FRAME', '']
-  cuts.forEach((c, i) => {
-    const out = cuts[i + 1]?.ms ?? end
-    const reel = c.name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8).padEnd(8) || 'AX      '
-    const n = String(i + 1).padStart(3, '0')
-    lines.push(`${n}  ${reel} V     C        ${todTC(c.ms, fps)} ${todTC(out, fps)} ${runTC(c.ms - since, fps)} ${runTC(out - since, fps)}`)
-    lines.push(`* FROM CLIP NAME: ${c.name}`)
-    log
-      .filter((e) => e.kind === 'slate' && e.ms >= c.ms && e.ms < out)
-      .forEach((e) => lines.push(`* SLATE AT ${runTC(e.ms - since, fps)} (TOD ${todTC(e.ms, fps)})`))
-    lines.push('')
-  })
-  return lines.join('\r\n')
-}
-
-function buildCsv(log: CutEvent[], since: number, fps: 25 | 30) {
-  const rows = ['event,record_tc,time_of_day_tc,unix_ms,source']
-  log.forEach((e) => rows.push(`${e.kind},${runTC(e.ms - since, fps)},${todTC(e.ms, fps)},${Math.round(e.ms)},"${e.name.replace(/"/g, '""')}"`))
-  return rows.join('\n')
-}
-
-function download(blob: Blob, name: string) {
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = name
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(a.href), 10_000)
+const queue: { blob: Blob; name: string }[] = []
+let draining = false
+export function download(blob: Blob, name: string) {
+  queue.push({ blob, name })
+  if (draining) return
+  draining = true
+  const next = () => {
+    const item = queue.shift()
+    if (!item) {
+      draining = false
+      return
+    }
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(item.blob)
+    a.download = item.name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(a.href), 60_000)
+    setTimeout(next, 450)
+  }
+  next()
 }
 
 export const video = new VideoEngine()

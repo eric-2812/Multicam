@@ -13,11 +13,19 @@ export function loadDemo() {
   const cam = (p: Partial<VideoSource> & Pick<VideoSource, 'name' | 'link' | 'detail' | 'scene'>) =>
     newSource({ kind: 'demo', ...p, settings: { ...DEFAULT_SETTINGS, ...p.settings } })
   // Simulated lenses: each ring only shows up where the real device would have one.
-  const FULL: HwCaps = { width: 1920, height: 1080, fps: 30, focus: [0, 1], aperture: [1.4, 16], shutter: [15, 8000] }
-  const PTZ: HwCaps = { width: 3840, height: 2160, fps: 30, focus: [0, 1], aperture: [1.4, 11], shutter: [25, 4000] }
-  const WEBCAM: HwCaps = { width: 1920, height: 1080, fps: 30, focus: [0, 1], shutter: [30, 2000] }
-  const PHONE: HwCaps = { width: 1920, height: 1080, fps: 30, focus: [0, 1], shutter: [15, 4000] }
-  const DRONE: HwCaps = { width: 3840, height: 2160, fps: 30, shutter: [30, 8000] }
+  const m = (max: number, fps: number[]) =>
+    [
+      { w: 3840, h: 2160 },
+      { w: 1920, h: 1080 },
+      { w: 1280, h: 720 },
+    ]
+      .filter((x) => x.h <= max)
+      .map((x) => ({ ...x, fps }))
+  const FULL: HwCaps = { width: 3840, height: 2160, fps: 25, focus: [0, 1], aperture: [1.4, 16], shutter: [15, 8000], nd: true, iso: [100, 12800], modes: m(2160, [24, 25, 30, 50, 60]) }
+  const PTZ: HwCaps = { width: 1920, height: 1080, fps: 30, focus: [0, 1], aperture: [1.4, 11], shutter: [25, 4000], nd: true, iso: [100, 12800], modes: m(2160, [25, 30, 50, 60]) }
+  const WEBCAM: HwCaps = { width: 1920, height: 1080, fps: 30, focus: [0, 1], shutter: [30, 2000], iso: [100, 3200], modes: m(1080, [24, 30]) }
+  const PHONE: HwCaps = { width: 1920, height: 1080, fps: 30, focus: [0, 1], shutter: [15, 4000], iso: [100, 6400], modes: m(2160, [24, 30, 60]) }
+  const DRONE: HwCaps = { width: 3840, height: 2160, fps: 30, shutter: [30, 8000], iso: [100, 3200], nd: true, modes: m(2160, [24, 25, 30, 60]) }
 
   const wide = cam({ name: 'Studio Wide', scene: 'stage', link: 'network', detail: 'PTZ 20× · Ethernet / NDI', ptz: true, hw: PTZ, latency: 90, latencyKind: 'simulated' })
   const host = cam({ name: 'Host CU', scene: 'host', link: 'usb', detail: 'Mirrorless · USB-C capture', hw: FULL, latency: 50, latencyKind: 'simulated' })
@@ -41,7 +49,7 @@ export function loadDemo() {
     settings: { ...DEFAULT_SETTINGS, zoom: 1.9, pan: 0.35, tilt: -0.1 },
   })
   wide.presets = [{ zoom: 1, pan: 0, tilt: 0 }, { zoom: 2.4, pan: -0.45, tilt: -0.05 }, { zoom: 2.4, pan: 0.45, tilt: -0.08 }, { zoom: 1.6, pan: 0, tilt: -0.25 }, null, null]
-  const sources = [wide, host, guest, desk, drone, crowd, roam]
+  const sources = [wide, host, guest, desk, drone, crowd, roam].map((s, i) => ({ ...s, number: i + 1 }))
 
   const ch = (p: Partial<AudioChannel> & Pick<AudioChannel, 'name' | 'link' | 'detail' | 'voice'>) => newChannel({ kind: 'demo', ...p })
   const channels = [
@@ -68,6 +76,7 @@ export function loadDemo() {
     program: wide.id,
     preview: host.id,
     selected: wide.id,
+    project: s.project.name === 'Untitled' ? { ...s.project, name: 'Morning Sessions 112' } : s.project,
   }))
 
   setTimeout(() => {

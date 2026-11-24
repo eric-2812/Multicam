@@ -29,6 +29,7 @@ export type HostMsg =
   | { type: 'flip' }
   | { type: 'pong'; t0: number; th: number }
   | { type: 'slate' }
+  | { type: 'rec'; on: boolean; take?: string; startMs?: number; number?: number }
 export type PhoneMsg =
   | { type: 'hello'; name: string; caps: HwCaps; facing: string }
   | { type: 'ping'; t0: number }
@@ -100,6 +101,16 @@ export function openRoom() {
   // The slate flashes every phone screen too, so phones can act as a visible clapperboard.
   window.addEventListener('tally-slate', () => {
     for (const l of phones.values()) if (l.conn?.open) l.conn.send({ type: 'slate' } satisfies HostMsg)
+  })
+  // Record-all also starts each phone's own full-quality recording.
+  window.addEventListener('tally-rec', (e) => {
+    const d = (e as CustomEvent<{ on: boolean; take?: string; startMs?: number }>).detail
+    for (const l of phones.values()) {
+      if (!l.conn?.open) continue
+      const src = store.get().sources.find((s) => s.id === l.sourceId)
+      if (d.on && !src?.rec.armed) continue
+      l.conn.send({ type: 'rec', on: d.on, take: d.take, startMs: d.startMs, number: src?.number } satisfies HostMsg)
+    }
   })
   p.on('connection', (conn) => {
     const link = linkFor(conn.peer, (conn.metadata?.name as string) || 'Phone')
@@ -245,6 +256,7 @@ export function joinRoom(
     state(s: string): void
     clock(offset: number, rtt: number): void
     slate(): void
+    rec(m: Extract<HostMsg, { type: 'rec' }>): void
   },
 ): Sender {
   const p = new Peer(peerOptions())
@@ -303,6 +315,7 @@ export function joinRoom(
       else if (m.type === 'flip') on.flip()
       else if (m.type === 'pong') onPong(m)
       else if (m.type === 'slate') on.slate()
+      else if (m.type === 'rec') on.rec(m)
     })
     conn.on('close', () => !closed && on.state('lost'))
   }

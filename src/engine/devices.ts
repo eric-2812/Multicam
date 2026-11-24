@@ -21,9 +21,12 @@ export function newSource(p: Partial<VideoSource> & Pick<VideoSource, 'name' | '
     presets: [null, null, null, null, null, null],
     status: 'live',
     delay: 0,
+    rec: { armed: true, feed: p.kind === 'demo' || p.kind === 'url' ? 'processed' : 'clean' },
+    number: 0,
     ...p,
   }
 }
+
 
 export function newChannel(p: Partial<AudioChannel> & Pick<AudioChannel, 'name' | 'kind' | 'link' | 'detail'>): AudioChannel {
   return { id: uid('mic'), gain: 1, pan: 0, muted: false, solo: false, afv: null, status: 'live', delay: 0, ...p }
@@ -57,7 +60,24 @@ type ExtCaps = MediaTrackCapabilities & {
   focusMode?: string[]
   exposureTime?: Range
   exposureMode?: string[]
+  iso?: Range
+  colorTemperature?: Range
+  whiteBalanceMode?: string[]
+  exposureCompensation?: Range
+  sharpness?: Range
+  width?: Range
+  height?: Range
+  frameRate?: Range
 }
+
+const STD_MODES = [
+  { w: 3840, h: 2160 },
+  { w: 2560, h: 1440 },
+  { w: 1920, h: 1080 },
+  { w: 1280, h: 720 },
+  { w: 640, h: 360 },
+]
+const STD_FPS = [24, 25, 30, 50, 60]
 
 /** Read what the camera lets us control. Used locally and by the phone page. */
 export function capsOf(track: MediaStreamTrack): HwCaps {
@@ -72,6 +92,19 @@ export function capsOf(track: MediaStreamTrack): HwCaps {
   // exposureTime is in units of 100 µs; convert to a 1/x shutter range.
   if (caps.exposureTime && caps.exposureTime.max > caps.exposureTime.min && caps.exposureMode?.includes('manual')) {
     hw.shutter = [Math.max(1, 10000 / caps.exposureTime.max), 10000 / Math.max(caps.exposureTime.min, 0.01)]
+  }
+  if (caps.iso && caps.iso.max > caps.iso.min) hw.iso = [caps.iso.min, caps.iso.max]
+  if (caps.colorTemperature && caps.colorTemperature.max > caps.colorTemperature.min && caps.whiteBalanceMode?.includes('manual')) {
+    hw.wb = [caps.colorTemperature.min, caps.colorTemperature.max]
+  }
+  if (caps.exposureCompensation && caps.exposureCompensation.max > caps.exposureCompensation.min) {
+    hw.ev = [caps.exposureCompensation.min, caps.exposureCompensation.max]
+  }
+  if (caps.sharpness && caps.sharpness.max > caps.sharpness.min) hw.sharpness = [caps.sharpness.min, caps.sharpness.max]
+  if (caps.width?.max && caps.height?.max) {
+    const maxFps = caps.frameRate?.max ?? 30
+    const fps = STD_FPS.filter((f) => f <= maxFps + 0.5)
+    hw.modes = STD_MODES.filter((m) => m.w <= caps.width!.max && m.h <= caps.height!.max).map((m) => ({ ...m, fps: fps.length ? fps : [30] }))
   }
   return hw
 }
@@ -90,10 +123,23 @@ export function hwConstraints(src: VideoSource): Record<string, unknown> {
       c.focusDistance = hw.focus[0] + s.focus * (hw.focus[1] - hw.focus[0])
     }
   }
-  if (hw.shutter) {
-    c.exposureMode = 'manual'
-    c.exposureTime = 10000 / s.shutter
+  if (hw.shutter || hw.iso) {
+    if (s.autoExposure) c.exposureMode = 'continuous'
+    else {
+      c.exposureMode = 'manual'
+      if (hw.shutter) c.exposureTime = 10000 / s.shutter
+      if (hw.iso) c.iso = Math.max(hw.iso[0], Math.min(hw.iso[1], s.iso))
+    }
   }
+  if (hw.ev) c.exposureCompensation = Math.max(hw.ev[0], Math.min(hw.ev[1], s.exposure))
+  if (hw.wb) {
+    if (s.autoWhiteBalance) c.whiteBalanceMode = 'continuous'
+    else {
+      c.whiteBalanceMode = 'manual'
+      c.colorTemperature = Math.max(hw.wb[0], Math.min(hw.wb[1], s.whiteBalance))
+    }
+  }
+  if (hw.sharpness) c.sharpness = hw.sharpness[0] + s.sharpness * (hw.sharpness[1] - hw.sharpness[0])
   return c
 }
 
@@ -189,6 +235,25 @@ export function applyHardware(src: VideoSource) {
   }
   const track = video.getStream(src.id)?.getVideoTracks()[0]
   track?.applyConstraints({ advanced: [c as MediaTrackConstraintSet] }).catch(() => {})
+}
+
+/** Switch a camera's resolution / frame rate. Simulated cameras just relabel. */
+export async function setMode(src: VideoSource, w: number, h: number, fps: number) {
+  const hw = { ...src.hw, width: w, height: h, fps }
+  if (src.kind === 'demo') return updateSource(src.id, { hw })
+  if (src.kind === 'phone') {
+    sendToPhone(src.id, { type: 'hw', c: { width: w, height: h, frameRate: fps } })
+    return updateSource(src.id, { hw })
+  }
+  const track = video.getStream(src.id)?.getVideoTracks()[0]
+  if (!track) return
+  try {
+    await track.applyConstraints({ width: { ideal: w }, height: { ideal: h }, frameRate: { ideal: fps } })
+    const set = track.getSettings()
+    updateSource(src.id, { hw: { ...hw, width: set.width, height: set.height, fps: set.frameRate ? Math.round(set.frameRate) : fps } })
+  } catch (e) {
+    toast(`${src.name}: the camera refused ${w}×${h} at ${fps} fps`, 'bad')
+  }
 }
 
 export function removeSource(id: string) {
