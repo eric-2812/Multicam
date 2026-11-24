@@ -224,7 +224,7 @@ export interface RemoteCam {
   battery?: number
   /** Last known recording state reported by the camera (null = not reported yet). */
   recording: boolean | null
-  /** Start and stop together with Tally's REC. */
+  /** Start and stop together with Cortiva's REC. */
   follow: boolean
 }
 

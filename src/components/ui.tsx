@@ -4,7 +4,7 @@ import { Icon } from './Icon'
 /** Small persistent UI memory (open sections etc.), safe when storage is blocked. */
 function remember<T>(key: string, fallback: T): T {
   try {
-    const v = localStorage.getItem(`tally:${key}`)
+    const v = localStorage.getItem(`cortiva:${key}`)
     return v === null ? fallback : (JSON.parse(v) as T)
   } catch {
     return fallback
@@ -12,7 +12,7 @@ function remember<T>(key: string, fallback: T): T {
 }
 function persist(key: string, v: unknown) {
   try {
-    localStorage.setItem(`tally:${key}`, JSON.stringify(v))
+    localStorage.setItem(`cortiva:${key}`, JSON.stringify(v))
   } catch {
     // storage unavailable
   }

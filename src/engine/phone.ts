@@ -68,7 +68,7 @@ function newRoomId() {
   const abc = 'abcdefghjkmnpqrstuvwxyz23456789'
   let s = ''
   for (let i = 0; i < 6; i++) s += abc[(Math.random() * abc.length) | 0]
-  return `tally-${s}`
+  return `cortiva-${s}`
 }
 
 /**
@@ -81,7 +81,7 @@ export function joinUrl(room: string) {
   const u = new URL(/^https?:$/.test(location.protocol) ? location.href : PUBLIC_URL)
   u.search = ''
   u.hash = ''
-  u.searchParams.set('join', room.replace(/^tally-/, ''))
+  u.searchParams.set('join', room.replace(/^cortiva-/, ''))
   const custom = new URLSearchParams(location.search).get('signal')
   if (custom) u.searchParams.set('signal', custom)
   return u.toString()
@@ -113,11 +113,11 @@ export function openRoom() {
     setTimeout(() => !p.destroyed && p.reconnect(), 1500 * 2 ** retries)
   })
   // The slate flashes every phone screen too, so phones can act as a visible clapperboard.
-  window.addEventListener('tally-slate', () => {
+  window.addEventListener('cortiva-slate', () => {
     for (const l of phones.values()) if (l.conn?.open) l.conn.send({ type: 'slate' } satisfies HostMsg)
   })
   // Record-all also starts each phone's own full-quality recording.
-  window.addEventListener('tally-rec', (e) => {
+  window.addEventListener('cortiva-rec', (e) => {
     const d = (e as CustomEvent<{ on: boolean; take?: string; startMs?: number }>).detail
     for (const l of phones.values()) {
       if (!l.conn?.open) continue
@@ -279,7 +279,7 @@ export function joinRoom(
   let current = stream
   let closed = false
   let battery: { level: number; charging: boolean; addEventListener(t: string, f: () => void): void } | null = null
-  const target = room.startsWith('tally-') ? room : `tally-${room}`
+  const target = room.startsWith('cortiva-') ? room : `cortiva-${room}`
 
   // Clock sync: bursts of pings; the reply with the shortest round trip gives the best offset.
   let best: { offset: number; rtt: number; at: number } | null = null

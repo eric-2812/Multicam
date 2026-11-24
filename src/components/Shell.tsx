@@ -76,7 +76,7 @@ function Header() {
           <i />
           <i />
         </span>
-        <span className="hdr-name">Tally</span>
+        <span className="hdr-name">Cortiva</span>
       </div>
       <nav className="hdr-nav" aria-label="Pages">
         {PAGES.map((p) => (

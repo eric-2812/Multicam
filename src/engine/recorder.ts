@@ -29,7 +29,7 @@ export function folderSupported() {
 
 export async function chooseFolder() {
   const pick = (window as unknown as { showDirectoryPicker(o: object): Promise<DirHandle> }).showDirectoryPicker
-  folder = await pick({ mode: 'readwrite', id: 'tally-recordings' })
+  folder = await pick({ mode: 'readwrite', id: 'cortiva-recordings' })
   store.set((s) => ({ rec: { ...s.rec, dest: 'folder', folderName: folder!.name } }))
 }
 
@@ -213,7 +213,7 @@ class Recorder {
         dest: this.dir ? `${folder!.name}/${base}` : 'Downloads',
         onCard,
       }
-      if (cfg.phoneLocal) window.dispatchEvent(new CustomEvent('tally-rec', { detail: { on: true, take: base, startMs } }))
+      if (cfg.phoneLocal) window.dispatchEvent(new CustomEvent('cortiva-rec', { detail: { on: true, take: base, startMs } }))
       store.set((s) => ({ recordingSince: startMs, takes: [this.take!, ...s.takes] }))
     } catch (e) {
       this.tracks.forEach((t) => t.rec.state !== 'inactive' && t.rec.stop())
@@ -249,7 +249,7 @@ class Recorder {
     video.flash()
     audio.slate()
     if (this.take) this.event('slate', store.get().program)
-    window.dispatchEvent(new CustomEvent('tally-slate'))
+    window.dispatchEvent(new CustomEvent('cortiva-slate'))
     toast(`Slate at ${todTC(nowMs(), store.get().fps)}`, 'info')
   }
 
@@ -261,7 +261,7 @@ class Recorder {
     this.unsub?.()
     this.tracks.forEach((t) => t.rec.state !== 'inactive' && t.rec.stop())
     recordRemotes(false)
-    window.dispatchEvent(new CustomEvent('tally-rec', { detail: { on: false } }))
+    window.dispatchEvent(new CustomEvent('cortiva-rec', { detail: { on: false } }))
     store.set({ recordingSince: null })
     await Promise.all(this.tracks.map((t) => t.done))
     this.release()

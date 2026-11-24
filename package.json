@@ -1,8 +1,8 @@
 {
-  "name": "tally",
-  "productName": "Tally",
+  "name": "cortiva",
+  "productName": "Cortiva",
   "description": "Multicam recording and control: record every camera and mic in sync.",
-  "author": "Tally",
+  "author": "Cortiva",
   "private": true,
   "version": "0.1.0-beta",
   "type": "module",
@@ -30,8 +30,8 @@
     "vite": "^8.3.8"
   },
   "build": {
-    "appId": "app.tally.multicam",
-    "productName": "Tally",
+    "appId": "app.cortiva.multicam",
+    "productName": "Cortiva",
     "directories": {
       "output": "release"
     },
@@ -56,10 +56,10 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Tally-Setup-${version}.exe"
+      "artifactName": "Cortiva-Setup-${version}.exe"
     },
     "portable": {
-      "artifactName": "Tally-${version}-portable.exe"
+      "artifactName": "Cortiva-${version}-portable.exe"
     }
   }
 }

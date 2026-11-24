@@ -3,7 +3,7 @@ import type { RemoteCam } from '../types'
 
 /**
  * On-camera recording over Bluetooth LE, so GoPros and Sony Alphas record full quality to their
- * own cards, started and stopped with Tally's REC.
+ * own cards, started and stopped with Cortiva's REC.
  *
  * GoPro: the official Open GoPro BLE API (HERO9 and later).
  * Sony: the Bluetooth remote protocol used by Sony's own RMT-P1BT remote, as documented by the
@@ -270,7 +270,7 @@ export async function pairSony() {
       if (cur === null) {
         // The record button toggles; until the camera has reported its state, pressing it could
         // stop a recording instead of starting one.
-        toast(`${name}: recording state not known yet — press record on the camera once, then Tally can follow it`, 'bad')
+        toast(`${name}: recording state not known yet — press record on the camera once, then Cortiva can follow it`, 'bad')
         return
       }
       await press(0x0f, 0x0e)

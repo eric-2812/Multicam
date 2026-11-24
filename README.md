@@ -1,4 +1,4 @@
-# Tally · multicam recording and control
+# Cortiva · multicam recording and control
 
 A browser app for multicam shoots: connect every camera and microphone, set each one up from one place, and **record them all, each to its own file, starting on the same frame** — then cut the footage in your editor (Premiere, Resolve, Final Cut…) as a multicam clip.
 
@@ -47,7 +47,7 @@ Controls appear only when the camera supports them, driven through the browser's
 
 ### iPhone, GoPro and Sony Alpha
 
-| Camera | Picture into Tally | Recording on the camera |
+| Camera | Picture into Cortiva | Recording on the camera |
 | --- | --- | --- |
 | **iPhone** | Continuity Camera on a Mac (shows up as “iPhone Camera”), or the Wi-Fi link in Safari on any computer | Over Wi-Fi the iPhone records its own full-quality file with each take |
 | **GoPro** (HERO8+) | Webcam mode over USB-C with the GoPro Webcam app (up to 1080p), or HDMI with the Media Mod into a capture card | Pair over Bluetooth (HERO9+, Open GoPro API): it records to its card with REC; battery and recording state are shown |
@@ -92,7 +92,7 @@ Keyboard:
 
 ## Download (Windows)
 
-Get **Tally beta 0.1** from the [Releases page](https://github.com/eric-2812/Multicam/releases): the installer (`Tally-Setup-0.1.0-beta.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Tally**.
+Get **Cortiva beta 0.1** from the [Releases page](https://github.com/eric-2812/Multicam/releases): the installer (`Cortiva-Setup-0.1.0-beta.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Cortiva**.
 
 To make a new release, bump `version` in `package.json` and push a tag like `v0.2.0-beta`; `.github/workflows/release.yml` builds the Windows app and publishes it.
 

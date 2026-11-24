@@ -31,22 +31,28 @@ jobs:
         env:
           # No code-signing certificate yet: Windows will show "unknown publisher" on first run.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Replace an earlier release with the same tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Re-running a tag swaps out its files. When run by hand, the tag is recreated on this commit.
+        run: gh release delete "${{ github.event.inputs.tag || github.ref_name }}" --yes ${{ github.event_name == 'workflow_dispatch' && '--cleanup-tag' || '' }} --repo "${{ github.repository }}" || true
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           target_commitish: ${{ github.sha }}
-          name: Tally beta 0.1
+          name: Cortiva beta 0.1
           prerelease: true
           files: |
-            release/Tally-Setup-*.exe
-            release/Tally-*-portable.exe
+            release/Cortiva-Setup-*.exe
+            release/Cortiva-*-portable.exe
           body: |
-            First beta of Tally for Windows.
+            First beta of Cortiva for Windows.
 
             **Download**
-            - `Tally-Setup-0.1.0-beta.exe` — installer (Start menu shortcut, uninstall from Settings).
-            - `Tally-0.1.0-beta-portable.exe` — single file, nothing to install.
+            - `Cortiva-Setup-0.1.0-beta.exe` — installer (Start menu shortcut, uninstall from Settings).
+            - `Cortiva-0.1.0-beta-portable.exe` — single file, nothing to install.
 
             Windows SmartScreen may say "Windows protected your PC" because the app isn't code-signed yet: click **More info → Run anyway**.
 
@@ -57,7 +63,7 @@ jobs:
             - Camera settings the hardware supports (focus, shutter, ISO, white balance, PTZ and more), per-mic trim, EQ, compressor and gate.
             - Master timecode, lip-sync alignment, slate, focus view with zebras / peaking / histogram, live switcher.
 
-            Recordings without a chosen folder are saved to **Videos\Tally**.
+            Recordings without a chosen folder are saved to **Videos\Cortiva**.
 
             **Known limits in this beta**
             - Not tested yet with a real Sony a7 IV or GoPro over Bluetooth.

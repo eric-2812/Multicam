@@ -1,5 +1,5 @@
 /*
- * Tally — control-room UI.
+ * Cortiva — control-room UI.
  * Sovereign posture: dense, keyboard-first, neutral. Colour is reserved for state:
  * red = recording / on air, green = preview / OK, amber = attention. Everything else is zinc.
  * Spacing on a 4px grid; 4px radius on controls, 6px on panels; Inter for UI, Plex Mono for numbers.

@@ -384,9 +384,9 @@ function RemoteList({ kind }: { kind: 'gopro' | 'sony' }) {
               {r.recording === true && ' · recording on card'}
             </small>
           </span>
-          <label className="inline" title={`Start and stop this ${REMOTE_LABEL[kind]} with Tally's REC`}>
+          <label className="inline" title={`Start and stop this ${REMOTE_LABEL[kind]} with Cortiva's REC`}>
             With REC
-            <Switch label={`Record ${r.name} with Tally`} on={r.follow} onChange={(v) => store.set((s) => ({ remotes: s.remotes.map((x) => (x.id === r.id ? { ...x, follow: v } : x)) }))} />
+            <Switch label={`Record ${r.name} with Cortiva`} on={r.follow} onChange={(v) => store.set((s) => ({ remotes: s.remotes.map((x) => (x.id === r.id ? { ...x, follow: v } : x)) }))} />
           </label>
           {r.status === 'connected' ? (
             <button className={`btn btn-sm ${r.recording ? 'btn-danger' : ''}`} onClick={() => void setRemoteRecording(r.id, !r.recording)}>
@@ -456,7 +456,7 @@ function IphoneTab() {
       <Detected match={/iphone|continuity|desk view/i} what="iPhone" mics />
 
       <h4>Anywhere: over Wi-Fi</h4>
-      <p className="lead">Works with any iPhone or iPad and any computer. Open the link on the iPhone in Safari. While Tally records, the iPhone also records its own full-quality file (saved to Files → Downloads).</p>
+      <p className="lead">Works with any iPhone or iPad and any computer. Open the link on the iPhone in Safari. While Cortiva records, the iPhone also records its own full-quality file (saved to Files → Downloads).</p>
       {wifi ? (
         <PhoneTab />
       ) : (
@@ -476,7 +476,7 @@ function IphoneTab() {
 function GoProTab() {
   return (
     <div className="tab-body">
-      <h4>Picture into Tally</h4>
+      <h4>Picture into Cortiva</h4>
       <ol className="steps">
         <li>HERO8 or later: install the GoPro Webcam app on the computer (Mac or Windows) and connect the GoPro with its USB-C cable.</li>
         <li>Start webcam mode from the app. The GoPro appears as “GoPro Webcam” (up to 1080p) — add it below.</li>
@@ -499,7 +499,7 @@ function GoProTab() {
 function SonyTab() {
   return (
     <div className="tab-body">
-      <h4>Picture into Tally</h4>
+      <h4>Picture into Cortiva</h4>
       <ol className="steps">
         <li>USB streaming (a7 IV, a7S III, FX3, ZV series…): connect the camera’s USB-C port and choose “Live Stream (USB Streaming)” when it asks. It becomes a webcam and a microphone — add them below.</li>
         <li>4K and 1080p need a 10 Gbps USB-C port and cable; on USB 2 the camera sends 720p.</li>

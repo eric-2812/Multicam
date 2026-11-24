@@ -57,7 +57,7 @@ const STATE_TEXT: Record<string, string> = {
 }
 
 export function PhoneSender({ room }: { room: string }) {
-  const [name, setName] = useState(() => localStorage.getItem('tally-phone-name') || `Phone ${Math.floor(Math.random() * 90 + 10)}`)
+  const [name, setName] = useState(() => localStorage.getItem('cortiva-phone-name') || `Phone ${Math.floor(Math.random() * 90 + 10)}`)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [facing, setFacing] = useState<Facing>('environment')
   const [mic, setMic] = useState(true)
@@ -115,7 +115,7 @@ export function PhoneSender({ room }: { room: string }) {
   const goLive = async () => {
     setError(null)
     try {
-      localStorage.setItem('tally-phone-name', name)
+      localStorage.setItem('cortiva-phone-name', name)
       const s = await openCamera(facing, mic)
       streamRef.current = s
       setStream(s)
@@ -203,7 +203,7 @@ export function PhoneSender({ room }: { room: string }) {
             <i />
             <i />
           </span>
-          <span className="brand-name">Tally</span>
+          <span className="brand-name">Cortiva</span>
         </div>
         <h1>Use this phone as a camera</h1>
         <p>

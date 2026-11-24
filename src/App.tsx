@@ -29,7 +29,7 @@ function Welcome() {
             <i />
             <i />
           </span>
-          <span className="hdr-name">Tally</span>
+          <span className="hdr-name">Cortiva</span>
         </div>
         <h1>Record every camera at once, in sync.</h1>
         <p className="welcome-lead">

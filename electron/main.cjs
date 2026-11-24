@@ -1,4 +1,4 @@
-// Tally desktop app (Electron). Serves the built web app from a private, secure origin and
+// Cortiva desktop app (Electron). Serves the built web app from a private, secure origin and
 // fills in the browser bits a desktop app has to answer itself: permissions, the Bluetooth
 // device picker and pairing prompts, screen-share source picking and silent downloads.
 const { app, BrowserWindow, protocol, net, session, desktopCapturer, shell, dialog } = require('electron')
@@ -13,12 +13,12 @@ if (process.platform === 'linux') app.commandLine.appendSwitch('enable-experimen
 
 // A standard, secure scheme so camera, microphone, Bluetooth and folder access all work.
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'tally', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } },
+  { scheme: 'cortiva', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } },
 ])
 
-// Recordings that fall back to downloads go straight into Videos/Tally, without a dialog per file.
+// Recordings that fall back to downloads go straight into Videos/Cortiva, without a dialog per file.
 function recordingsDir() {
-  const dir = path.join(app.getPath('videos'), 'Tally')
+  const dir = path.join(app.getPath('videos'), 'Cortiva')
   fs.mkdirSync(dir, { recursive: true })
   return dir
 }
@@ -30,7 +30,7 @@ function createWindow() {
     minWidth: 960,
     minHeight: 600,
     backgroundColor: '#09090b',
-    title: 'Tally',
+    title: 'Cortiva',
     autoHideMenuBar: true,
     icon: path.join(__dirname, 'icon.png'),
     webPreferences: { contextIsolation: true, sandbox: true },
@@ -60,12 +60,12 @@ function createWindow() {
     return { action: 'deny' }
   })
 
-  win.loadURL('tally://app/index.html')
+  win.loadURL('cortiva://app/index.html')
 }
 
 app.whenReady().then(() => {
-  // Serve dist/ on tally://app/…
-  protocol.handle('tally', (req) => {
+  // Serve dist/ on cortiva://app/…
+  protocol.handle('cortiva', (req) => {
     const url = new URL(req.url)
     let file = path.normalize(path.join(DIST, decodeURIComponent(url.pathname)))
     if (!file.startsWith(DIST)) return new Response('Not found', { status: 404 })
