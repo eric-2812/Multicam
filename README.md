@@ -94,7 +94,7 @@ Keyboard:
 
 Get **Cortiva beta 0.1** from the [Releases page](https://github.com/eric-2812/Multicam/releases): the installer (`Cortiva-Setup-0.1.0-beta.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Cortiva**.
 
-To make a new release, bump `version` in `package.json` and push a tag like `v0.2.0-beta`; `.github/workflows/release.yml` builds the Windows app and publishes it.
+Every change ships as a new release: bump `version` in `package.json` (`0.2.0-beta`, `0.3.0-beta`…), describe the change in a new section at the top of [`CHANGELOG.md`](CHANGELOG.md), push, then run **Release (Windows)** from the Actions tab. It builds the Windows app, publishes a new release named after the version with that changelog section as its notes, and refuses to overwrite a version that was already released.
 
 ## Run it
 

@@ -1,16 +1,12 @@
 name: Release (Windows)
 
-# Push a tag like v0.1.0-beta — or run this workflow by hand with a tag name — to build the
-# Windows app and publish it as a GitHub release (the tag is created if it doesn't exist yet).
+# Publishes a NEW release for the version in package.json, with the notes from its CHANGELOG.md
+# section. Run it by hand from the Actions tab (or push a matching v* tag). It refuses to
+# publish a version that already has a release: bump the version for every change.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Release tag
-        default: v0.1.0-beta
-        required: true
 
 permissions:
   contents: write
@@ -24,6 +20,21 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Work out the version and its release notes
+        id: info
+        run: node scripts/release-info.mjs
+
+      - name: Stop if this version was already released
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.info.outputs.tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "::error::${{ steps.info.outputs.tag }} is already released. Bump \"version\" in package.json and add a CHANGELOG.md section."
+            exit 1
+          fi
+
       - run: npm ci
       - run: npm run build
       - name: Build installer and portable .exe
@@ -31,40 +42,16 @@ jobs:
         env:
           # No code-signing certificate yet: Windows will show "unknown publisher" on first run.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      - name: Replace an earlier release with the same tag
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        # Re-running a tag swaps out its files. When run by hand, the tag is recreated on this commit.
-        run: gh release delete "${{ github.event.inputs.tag || github.ref_name }}" --yes ${{ github.event_name == 'workflow_dispatch' && '--cleanup-tag' || '' }} --repo "${{ github.repository }}" || true
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ steps.info.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: Cortiva beta 0.1
+          name: ${{ steps.info.outputs.name }}
+          body_path: release-notes.md
           prerelease: true
+          make_latest: true
           files: |
             release/Cortiva-Setup-*.exe
             release/Cortiva-*-portable.exe
-          body: |
-            First beta of Cortiva for Windows.
-
-            **Download**
-            - `Cortiva-Setup-0.1.0-beta.exe` — installer (Start menu shortcut, uninstall from Settings).
-            - `Cortiva-0.1.0-beta-portable.exe` — single file, nothing to install.
-
-            Windows SmartScreen may say "Windows protected your PC" because the app isn't code-signed yet: click **More info → Run anyway**.
-
-            **What's in it**
-            - Record every camera and every mic to its own file, all starting on the same frame, plus the switched program, an EDL, markers and a take sheet.
-            - Webcams and capture cards, iPhone (Continuity Camera or Wi-Fi), GoPro (webcam mode / HDMI) and Sony Alpha (USB streaming / HDMI), IP cameras, screen share.
-            - GoPro (HERO9+) and Sony Alpha paired over Bluetooth record to their own cards with REC.
-            - Camera settings the hardware supports (focus, shutter, ISO, white balance, PTZ and more), per-mic trim, EQ, compressor and gate.
-            - Master timecode, lip-sync alignment, slate, focus view with zebras / peaking / histogram, live switcher.
-
-            Recordings without a chosen folder are saved to **Videos\Cortiva**.
-
-            **Known limits in this beta**
-            - Not tested yet with a real Sony a7 IV or GoPro over Bluetooth.
-            - Phones join through the web version (the QR code opens it), so the web app must be published on GitHub Pages.
