@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { recorder, whyCantRecord } from '../engine/recorder'
 import { masterTC, nowMs, runTC } from '../engine/timecode'
 import { video } from '../engine/video'
+import { handleKey, useOsd } from '../engine/keys'
 import { store, toast, useStore, type Page } from '../store'
 import { Icon } from './Icon'
 import { LivePage } from './LivePage'
@@ -196,30 +197,22 @@ function useShortcuts() {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement
       if (el.closest('input:not([type=range]), textarea, select, [role=application], [role=slider]')) return
-      if (e.metaKey || e.ctrlKey || e.altKey) return
-      const st = store.get()
-      const digit = /^Digit([1-9])$/.exec(e.code)
-      if (digit) {
-        const src = st.sources.find((s) => s.number === Number(digit[1]))
-        if (!src) return
-        if (e.shiftKey) video.hotCut(src.id)
-        else store.set({ selected: src.id, preview: src.id === st.program ? st.preview : src.id })
-      } else if (e.code === 'Space') video.cut()
-      else if (e.code === 'Enter' || e.code === 'NumpadEnter') video.auto()
-      else if (e.key === 'r' || e.key === 'R') void (recorder.active ? recorder.stop() : recorder.start())
-      else if (e.key === 'm' || e.key === 'M') recorder.marker()
-      else if (e.key === 's' || e.key === 'S') recorder.slate()
-      else if (e.key === 'f' || e.key === 'F') store.set({ ftb: !st.ftb })
-      else if (e.key === 'l' || e.key === 'L') store.set({ lowerThird: { ...st.lowerThird, on: !st.lowerThird.on } })
-      else if (e.key === 'g' || e.key === 'G') store.set({ view: 'grid', page: 'live' })
-      else if (e.key === 'v' || e.key === 'V') store.set({ view: 'focus', page: 'live' })
-      else if (e.key === 'x' || e.key === 'X') store.set({ view: 'switch', page: 'live' })
-      else return
-      e.preventDefault()
+      if (handleKey(e)) e.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+}
+
+/** What a shortcut just changed ("Cam 1 — Shutter 1/100 · 180°"), shown briefly over the picture. */
+function KeyReadout() {
+  const o = useOsd()
+  if (!o) return null
+  return (
+    <div key={o.id} className={`osd ${o.tone === 'bad' ? 'osd-bad' : ''}`} role="status" aria-live="polite">
+      {o.text}
+    </div>
+  )
 }
 
 export function Shell() {
@@ -247,6 +240,7 @@ export function Shell() {
       </main>
       <StatusBar />
       <Toasts />
+      <KeyReadout />
     </div>
   )
 }

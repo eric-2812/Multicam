@@ -2079,9 +2079,6 @@ span.strip-name {
   word-break: break-all;
 }
 
-.tbl-keys td:first-child {
-  width: 160px;
-}
 
 .empty-row {
   text-align: center;
@@ -3232,4 +3229,122 @@ span.strip-name {
 .steps b {
   color: var(--text);
   font-weight: 500;
+}
+
+/* ---------------------------------------------------------------- shortcut editor */
+
+.keys {
+  display: grid;
+  gap: 20px;
+}
+
+.keys-h {
+  margin: 0 0 4px;
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tbl-keys td.keys-cell {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.keys-gap {
+  display: inline-block;
+  width: 24px;
+  vertical-align: middle;
+}
+
+.keys-cell .icon-btn,
+.keys-cell kbd {
+  vertical-align: middle;
+}
+
+@media (hover: hover) {
+  .keys-clear {
+    opacity: 0;
+  }
+
+  .tbl-keys tr:hover .keys-clear,
+  .keys-clear:focus-visible {
+    opacity: 1;
+  }
+}
+
+.keycap {
+  min-width: 96px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--text-2);
+  font: 500 11px var(--mono);
+  text-align: right;
+  cursor: pointer;
+}
+
+.keycap:hover kbd,
+.keycap:focus-visible kbd {
+  border-color: var(--text-3);
+  color: var(--hi);
+}
+
+.keycap.is-empty {
+  color: var(--text-3);
+}
+
+.keycap.is-empty:hover {
+  color: var(--text);
+}
+
+.tbl-keys tr.is-editing td {
+  background: var(--panel-2);
+}
+
+.tbl-keys tr.is-editing .keycap {
+  border: 1px dashed var(--line-2);
+  color: var(--hi);
+  text-align: center;
+}
+
+/* what a shortcut just changed, over the picture */
+.osd {
+  position: fixed;
+  top: 104px;
+  left: 50%;
+  z-index: 61;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  padding: 7px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: rgba(9, 9, 11, 0.9);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font: 500 13px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: osd-in 0.12s ease-out;
+}
+
+.osd-bad {
+  box-shadow: inset 3px 0 0 var(--red), 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes osd-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .osd {
+    animation: none;
+  }
 }

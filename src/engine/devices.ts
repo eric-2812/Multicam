@@ -1,5 +1,5 @@
-import { addChannel, addSource, store, toast, uid, updateSource } from '../store'
-import { DEFAULT_FX, DEFAULT_SETTINGS, type RawCap, type AudioChannel, type HwCaps, type Link, type VideoSource } from '../types'
+import { addChannel, addSource, store, toast, uid, updateSettings, updateSource } from '../store'
+import { DEFAULT_FX, DEFAULT_SETTINGS, type CamSettings, type RawCap, type AudioChannel, type HwCaps, type Link, type VideoSource } from '../types'
 import { audio } from './audio'
 import { sendToPhone } from './phone'
 import { video } from './video'
@@ -255,6 +255,18 @@ export function addUrlCamera(name: string, url: string) {
     },
     () => updateSource(src.id, { tainted: true }),
   )
+}
+
+/** Settings that the camera itself applies (the rest are done in this app's picture pipeline). */
+const HW_KEYS: (keyof CamSettings)[] = ['zoom', 'pan', 'tilt', 'torch', 'focus', 'autoFocus', 'shutter', 'iso', 'autoExposure', 'exposure', 'whiteBalance', 'autoWhiteBalance', 'sharpness']
+
+/** Change a camera's settings and send the hardware ones to the camera. */
+export function changeSettings(src: VideoSource, patch: Partial<CamSettings>) {
+  updateSettings(src.id, patch)
+  if (HW_KEYS.some((k) => k in patch)) {
+    const next = store.get().sources.find((s) => s.id === src.id)
+    if (next) applyHardware(next)
+  }
 }
 
 /** Push hardware settings to a real camera (local track, or a phone over its data channel). */

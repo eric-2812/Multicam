@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+import { ACTIONS, RESERVED, bind, comboOf, prettyKey, resetBindings, setCapturing, useBindings, type Group, type KeyAction } from '../engine/keys'
 import { chooseFolder, folderSupported } from '../engine/recorder'
 import { store, toast, updateSource, useStore, type SetupSection } from '../store'
 import { DevicesSection } from './Devices'
@@ -178,34 +180,115 @@ function RecordingSection() {
   )
 }
 
-const KEYS: [string, string][] = [
-  ['R', 'Start / stop recording'],
-  ['M', 'Marker'],
-  ['S', 'Slate (flash + beep everywhere)'],
+const FIXED: [string, string][] = [
   ['1 – 9', 'Select camera (and put it on preview)'],
   ['Shift + 1 – 9', 'Cut camera to program'],
-  ['Space', 'Cut'],
-  ['Enter', 'Auto transition'],
-  ['G / V / X', 'Grid / Focus / Switcher view'],
-  ['F', 'Fade to black'],
-  ['L', 'Title (lower third) on / off'],
   ['Double-click tile', 'Cut to program'],
 ]
 
-function ShortcutsSection() {
+const GROUPS: { id: Group; title: string }[] = [
+  { id: 'switch', title: 'Recording & switching' },
+  { id: 'camera', title: 'Selected camera' },
+]
+
+function KeyRow({ action, keyName, editing, onEdit }: { action: KeyAction; keyName: string | null; editing: boolean; onEdit: (on: boolean) => void }) {
   return (
-    <table className="tbl tbl-keys">
-      <tbody>
-        {KEYS.map(([k, v]) => (
-          <tr key={k}>
-            <td>
-              <kbd>{k}</kbd>
-            </td>
-            <td>{v}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <tr className={editing ? 'is-editing' : undefined}>
+      <td>{action.label}</td>
+      <td className="keys-cell">
+        <button
+          className={`keycap ${keyName ? '' : 'is-empty'}`}
+          aria-label={`${action.label}: ${keyName ? prettyKey(keyName) : 'no key'}. Change key`}
+          onClick={() => onEdit(!editing)}
+        >
+          {editing ? 'Press a key…' : keyName ? <kbd>{prettyKey(keyName)}</kbd> : 'Add key'}
+        </button>
+        {keyName && !editing ? (
+          <button className="icon-btn keys-clear" aria-label={`Remove the key for ${action.label}`} title="Remove key" onClick={() => bind(action.id, null)}>
+            <Icon name="close" size={12} />
+          </button>
+        ) : (
+          <span className="keys-gap" aria-hidden="true" />
+        )}
+      </td>
+    </tr>
+  )
+}
+
+function ShortcutsSection() {
+  const keys = useBindings()
+  const [editing, setEditing] = useState<string | null>(null)
+
+  // Waiting for a key: the next key press becomes the shortcut. Esc cancels, Backspace clears.
+  useEffect(() => {
+    if (!editing) return
+    setCapturing(true)
+    const action = ACTIONS.find((a) => a.id === editing)!
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.key === 'Escape') return setEditing(null)
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        bind(editing, null)
+        return setEditing(null)
+      }
+      const combo = comboOf(e)
+      if (!combo) return
+      if (RESERVED.test(combo)) return toast('1 – 9 (and Shift + 1 – 9) always pick cameras. Choose another key.', 'bad')
+      const lost = bind(editing, combo)
+      if (lost) toast(`${prettyKey(combo)} now does “${action.label}”. “${lost.label}” has no key.`, 'info')
+      setEditing(null)
+    }
+    const cancel = () => setEditing(null)
+    window.addEventListener('keydown', onKey, true)
+    window.addEventListener('blur', cancel)
+    return () => {
+      setCapturing(false)
+      window.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('blur', cancel)
+    }
+  }, [editing])
+
+  return (
+    <div className="keys">
+      <p className="hint">
+        Click a key to change it, then press the new one (Esc cancels, Backspace removes it). Camera keys change the selected camera — the one
+        open in the settings panel — and only work for controls its hardware has. Hold a key to keep adjusting.
+      </p>
+      {GROUPS.map((g) => (
+        <section key={g.id} className="keys-group">
+          <h2 className="keys-h">{g.title}</h2>
+          <table className="tbl tbl-keys">
+            <tbody>
+              {g.id === 'switch' &&
+                FIXED.map(([k, v]) => (
+                  <tr key={k}>
+                    <td>{v}</td>
+                    <td className="keys-cell">
+                      <kbd>{k}</kbd>
+                      <span className="keys-gap" aria-hidden="true" />
+                    </td>
+                  </tr>
+                ))}
+              {ACTIONS.filter((a) => a.group === g.id).map((a) => (
+                <KeyRow key={a.id} action={a} keyName={keys[a.id]} editing={editing === a.id} onEdit={(on) => setEditing(on ? a.id : null)} />
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ))}
+      <div className="row sec-actions">
+        <button
+          className="btn btn-sm btn-ghost"
+          onClick={() => {
+            resetBindings()
+            toast('Shortcuts back to the defaults', 'info')
+          }}
+        >
+          Reset to defaults
+        </button>
+      </div>
+    </div>
   )
 }
 

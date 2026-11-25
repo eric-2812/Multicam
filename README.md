@@ -75,7 +75,7 @@ The app fills the window at every size:
 
 Controls get larger on touch screens.
 
-Keyboard:
+Keyboard (default keys — change any of them in **Setup → Shortcuts**):
 
 | Key | Action |
 | --- | --- |
@@ -89,10 +89,21 @@ Keyboard:
 | `G` / `V` / `X` | Grid / Focus / Switcher view |
 | `F` | Fade to black |
 | `L` | Title |
+| `.` / `,` | Next / previous camera |
+| `C` / `Shift+C` | Shutter faster / slower (selected camera) |
+| `I` / `Shift+I` | ISO up / down |
+| `E` / `Shift+E` | Exposure ± ⅓ stop |
+| `A` / `Shift+A` | Iris: higher / lower f-number |
+| `N` / `Shift+N` | ND filter stronger / weaker |
+| `D` / `Shift+D` | Focus farther / nearer |
+| `Z` / `Shift+Z` | Zoom in / out |
+| `W` / `Shift+W` | White balance ± 100 K |
+
+Camera keys work on the selected camera, only for controls its hardware has, and show the new value on screen.
 
 ## Download (Windows)
 
-Get **Cortiva beta 0.1** from the [Releases page](https://github.com/eric-2812/Multicam/releases): the installer (`Cortiva-Setup-0.1.0-beta.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Cortiva**.
+Get the latest beta from the [Releases page](https://github.com/eric-2812/Multicam/releases): the installer (`Cortiva-Setup-<version>.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Cortiva**.
 
 Every change ships as a new release: bump `version` in `package.json` (`0.2.0-beta`, `0.3.0-beta`…), describe the change in a new section at the top of [`CHANGELOG.md`](CHANGELOG.md), push, then run **Release (Windows)** from the Actions tab. It builds the Windows app, publishes a new release named after the version with that changelog section as its notes, and refuses to overwrite a version that was already released.
 

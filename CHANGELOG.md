@@ -2,6 +2,27 @@
 
 Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
 
+## 0.3.0-beta — 25 nov 2026
+
+### Nuevo: atajos de teclado configurables
+- En **Setup → Shortcuts** puedes cambiar la tecla de cada acción: haz clic en la tecla, pulsa la nueva y listo. **Esc** cancela, **Retroceso** la quita, y **Reset to defaults** vuelve a las de fábrica. Se guardan en el ordenador.
+- Nuevas teclas para ajustar la cámara seleccionada (la que está abierta en el panel de ajustes):
+  - **C** / **Mayús + C**: obturador más rápido / más lento, de paso en paso (1/50 → 1/60 → 1/100…).
+  - **I** / **Mayús + I**: ISO arriba / abajo.
+  - **E** / **Mayús + E**: exposición ± ⅓ de paso.
+  - **A** / **Mayús + A**: iris (número f más alto / más bajo).
+  - **N** / **Mayús + N**: filtro ND.
+  - **D** / **Mayús + D**: foco más lejos / más cerca.
+  - **Z** / **Mayús + Z**: zoom.
+  - **W** / **Mayús + W**: balance de blancos ± 100 K.
+  - **.** y **,**: cámara siguiente / anterior.
+  - Sin tecla por defecto, para asignar a tu gusto: auto exposición, autofoco, balance automático, panorámica / inclinación y linterna.
+- Si mantienes pulsada una tecla, el ajuste sigue cambiando.
+- Al pulsar una tecla aparece arriba el valor nuevo, por ejemplo **"Cam 1 — Shutter 1/100 · 180°"**.
+- Igual que en el panel, solo funcionan los ajustes que tiene la cámara. Si no lo tiene, el aviso lo dice ("Cam 2 has no shutter control").
+- Al cambiar obturador o ISO desde el teclado, la cámara pasa a exposición manual. Lo mismo pasa con el foco (a enfoque manual) y con el balance de blancos (a manual).
+- Las teclas de siempre (R, M, S, Espacio, Intro…) también se pueden cambiar. **1–9** y **Mayús + 1–9** siguen fijas para elegir cámara y pincharla.
+
 ## 0.2.0-beta — 24 nov 2026
 
 Versión de seguridad, tras una auditoría de toda la app.

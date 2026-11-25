@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { applyHardware, removeSource, setMode } from '../engine/devices'
+import { applyHardware, changeSettings, removeSource, setMode } from '../engine/devices'
 import {
   FOCUS_STOPS,
   ISO_STOPS,
@@ -22,15 +22,7 @@ import { LensRing } from './LensRing'
 import { MicInspector } from './MicInspector'
 import { Row, Section, Seg, Slide, Switch } from './ui'
 
-const HW_KEYS: (keyof CamSettings)[] = ['zoom', 'pan', 'tilt', 'torch', 'focus', 'autoFocus', 'shutter', 'iso', 'autoExposure', 'exposure', 'whiteBalance', 'autoWhiteBalance', 'sharpness']
-
-function set(src: VideoSource, patch: Partial<CamSettings>) {
-  updateSettings(src.id, patch)
-  if (HW_KEYS.some((k) => k in patch)) {
-    const next = store.get().sources.find((s) => s.id === src.id)
-    if (next) applyHardware(next)
-  }
-}
+const set = changeSettings
 
 /** Ease a PTZ head toward a stored preset, like a real motorised camera. */
 const moving = new Map<string, number>()
