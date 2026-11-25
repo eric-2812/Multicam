@@ -2,6 +2,17 @@
 
 Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
 
+## 0.4.0-beta — 25 nov 2026
+
+### Arreglos
+- **Una cámara USB que pierde la señal ahora se reconecta sola.** Antes ponía "esperando a que vuelva", pero nunca lo intentaba. Ahora reintenta enseguida y luego cada pocos segundos, y en cuanto vuelve recupera sus ajustes (foco, obturador, balance…).
+- Si la cámara está ocupada por otra aplicación (otra pestaña, la app de Cortiva, Teams, la app Cámara…), te lo dice. En Windows, la mayoría de cámaras solo las puede usar una aplicación a la vez.
+- En el panel de la cámara hay un botón **Try now** para reintentar a mano.
+- El QR para unir móviles desde la app de escritorio apunta a la nueva dirección de la web (**eric-2812.github.io/cortiva**), tras el cambio de nombre del repositorio.
+
+### Límites conocidos
+- Si la cámara se pierde mientras grabas, su archivo de esa toma termina en ese momento; la siguiente toma ya graba con normalidad.
+
 ## 0.3.0-beta — 25 nov 2026
 
 ### Nuevo: atajos de teclado configurables

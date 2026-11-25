@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { applyHardware, changeSettings, removeSource, setMode } from '../engine/devices'
+import { applyHardware, changeSettings, removeSource, revive, reviving, setMode } from '../engine/devices'
 import {
   FOCUS_STOPS,
   ISO_STOPS,
@@ -222,7 +222,23 @@ function CameraSection({ src }: { src: VideoSource }) {
         </Row>
       )}
       <HwSummary src={src} />
-      {src.status !== 'live' && <p className="warn">{src.status === 'lost' ? 'Signal lost — waiting for the device to come back.' : 'Connecting…'}</p>}
+      {src.status !== 'live' && (
+        <p className="warn">
+          {src.status !== 'lost'
+            ? 'Connecting…'
+            : reviving(src.id)
+              ? 'Signal lost — reconnecting. If another app (another tab, the Cortiva app, Teams, Camera…) is using this camera, close it.'
+              : 'Signal lost — waiting for the device to come back.'}
+          {src.status === 'lost' && reviving(src.id) && (
+            <>
+              {' '}
+              <button className="linkbtn" onClick={() => void revive(src.id)}>
+                Try now
+              </button>
+            </>
+          )}
+        </p>
+      )}
       {src.tainted && <p className="warn">This network stream blocks capture (no CORS headers): it shows here but can't be recorded.</p>}
     </Section>
   )

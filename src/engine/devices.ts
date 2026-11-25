@@ -163,6 +163,91 @@ function watchEnded(id: string, track: MediaStreamTrack, name: string) {
   })
 }
 
+// ------------------------------------------------------------ getting a lost camera back
+// A USB camera's signal ends when it's unplugged, when another app takes it, or when Windows
+// or the browser stops it (sleep, privacy switch). Keep trying to reopen the same device.
+
+interface Revival {
+  name: string
+  reopen: () => Promise<MediaStream>
+  timer: number
+  tries: number
+  busy: boolean
+  inUseWarned: boolean
+}
+const revivals = new Map<string, Revival>()
+const RETRY_MS = [1000, 2000, 4000, 8000, 15000, 30000]
+
+if (typeof navigator !== 'undefined') {
+  // A camera plugged back in shows up as a device change: try at once.
+  navigator.mediaDevices?.addEventListener?.('devicechange', () => {
+    for (const id of revivals.keys()) void revive(id)
+  })
+}
+
+/** Watch a camera's signal; when it ends, say why and keep trying to reopen it. */
+function watchCamera(id: string, track: MediaStreamTrack, name: string, reopen: () => Promise<MediaStream>) {
+  track.addEventListener('ended', () => {
+    const cur = store.get().sources.find((s) => s.id === id)
+    if (!cur) return
+    updateSource(id, { status: 'lost' })
+    toast(`${cur.name} lost its signal — reconnecting…`, 'bad')
+    const r: Revival = { name, reopen, timer: 0, tries: 0, busy: false, inUseWarned: false }
+    revivals.set(id, r)
+    schedule(id, r)
+  })
+}
+
+function schedule(id: string, r: Revival) {
+  clearTimeout(r.timer)
+  r.timer = window.setTimeout(() => void revive(id), RETRY_MS[Math.min(r.tries, RETRY_MS.length - 1)])
+}
+
+/** Try to reopen a lost camera now. Also used by the Reconnect button. */
+export async function revive(id: string) {
+  const r = revivals.get(id)
+  const cur = store.get().sources.find((s) => s.id === id)
+  if (!r || !cur) return void stopReviving(id)
+  if (r.busy) return
+  r.busy = true
+  clearTimeout(r.timer)
+  try {
+    const stream = await r.reopen()
+    const track = stream.getVideoTracks()[0]
+    const now = store.get().sources.find((s) => s.id === id)
+    if (!now) {
+      stream.getTracks().forEach((t) => t.stop())
+      return void stopReviving(id)
+    }
+    revivals.delete(id)
+    video.attachStream(id, stream)
+    watchCamera(id, track, r.name, r.reopen)
+    updateSource(id, { status: 'live', hw: { ...now.hw, ...capsOf(track) } })
+    const back = store.get().sources.find((s) => s.id === id)
+    if (back) applyHardware(back)
+    toast(`${now.name} is back`, 'good')
+  } catch (e) {
+    r.tries++
+    // Windows only lets one app use most cameras at a time.
+    if ((e as DOMException).name === 'NotReadableError' && !r.inUseWarned) {
+      r.inUseWarned = true
+      toast(`${cur.name} is in use by another app (another browser tab, the Cortiva app, Teams, Camera…). Close it and it comes back here.`, 'bad')
+    }
+    schedule(id, r)
+  } finally {
+    r.busy = false
+  }
+}
+
+function stopReviving(id: string) {
+  const r = revivals.get(id)
+  if (r) clearTimeout(r.timer)
+  revivals.delete(id)
+}
+
+/** Whether Cortiva is still trying to get this camera back. */
+export const reviving = (id: string) => revivals.has(id)
+
 /** Open a camera asking for PTZ access too — Chrome only reports pan / tilt / zoom when asked. */
 export async function openCameraStream(video: MediaTrackConstraints) {
   try {
@@ -175,13 +260,14 @@ export async function openCameraStream(video: MediaTrackConstraints) {
 
 export async function addWebcam(device: MediaDeviceInfo, quality: '720' | '1080' | '4k') {
   const h = quality === '4k' ? 2160 : quality === '1080' ? 1080 : 720
-  const stream = await openCameraStream({ deviceId: { exact: device.deviceId }, height: { ideal: h }, width: { ideal: (h * 16) / 9 }, frameRate: { ideal: 30 } })
+  const open = () => openCameraStream({ deviceId: { exact: device.deviceId }, height: { ideal: h }, width: { ideal: (h * 16) / 9 }, frameRate: { ideal: 30 } })
+  const stream = await open()
   const track = stream.getVideoTracks()[0]
   const name = device.label || 'Camera'
   const link = guessLink(name)
   const src = newSource({ name: shortName(name), kind: 'webcam', link, detail: name, hw: capsOf(track), ...estimate(link) })
   video.attachStream(src.id, stream)
-  watchEnded(src.id, track, src.name)
+  watchCamera(src.id, track, src.name, open)
   addSource(src)
   toast(`${src.name} connected`, 'good')
 }
@@ -347,6 +433,7 @@ export async function setMode(src: VideoSource, w: number, h: number, fps: numbe
 }
 
 export function removeSource(id: string) {
+  stopReviving(id)
   video.remove(id)
   store.set((s) => {
     const sources = s.sources.filter((x) => x.id !== id)

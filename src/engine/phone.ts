@@ -195,7 +195,7 @@ function parseHostMsg(raw: unknown): HostMsg | null {
  * Where phones open the join page. In the browser that's this same site; the desktop app
  * isn't reachable from a phone, so it points phones at the public web version instead.
  */
-const PUBLIC_URL = import.meta.env.VITE_PUBLIC_URL || 'https://eric-2812.github.io/Multicam/'
+const PUBLIC_URL = import.meta.env.VITE_PUBLIC_URL || 'https://eric-2812.github.io/cortiva/'
 
 export function joinUrl(room: string) {
   const u = new URL(/^https?:$/.test(location.protocol) ? location.href : PUBLIC_URL)
