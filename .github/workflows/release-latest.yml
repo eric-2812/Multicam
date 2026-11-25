@@ -1,0 +1,29 @@
+name: Mark releases as full releases
+
+# Turns every release into a normal release (not "Pre-release") and marks the newest one as
+# Latest, so it shows in the Releases box on the repository page. Run it by hand from the Actions
+# tab; new releases are already published this way.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tags=$(gh release list --repo "$REPO" --limit 100 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | .[].tagName')
+          for t in $tags; do
+            gh release edit "$t" --repo "$REPO" --prerelease=false
+          done
+          newest=$(echo "$tags" | head -n 1)
+          if [ -n "$newest" ]; then
+            gh release edit "$newest" --repo "$REPO" --latest
+            echo "Latest: $newest"
+          fi
