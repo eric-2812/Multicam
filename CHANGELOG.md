@@ -2,6 +2,24 @@
 
 Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
 
+## 0.6.0-beta — 25 nov 2026
+
+### Nuevo: Canon, Nikon, Fujifilm y Lumix
+- Nueva pestaña **Canon · Nikon · Fuji · Lumix** (también en la pantalla de inicio). Eliges la marca y te dice paso a paso cómo conectar tu cámara:
+  - **Canon:** los modelos EOS recientes (R8, R5 Mark II…) funcionan como webcam por USB sin programas. Los demás, con **EOS Webcam Utility**.
+  - **Nikon:** Z6III (firmware 2.0 o posterior), Z f y Z50II con **USB streaming (UVC/UAC)** desde el menú de red. Los demás, con **Nikon Webcam Utility**.
+  - **Fujifilm:** los modelos nuevos con el modo de conexión **USB WEBCAM**. Los anteriores (X-T4, X-S10, X-Pro3, X100V…), con **FUJIFILM X Webcam**.
+  - **Lumix:** los modelos nuevos con el modo USB **PC (Webcam)**. Los anteriores (S1, S5, GH5, G9…), con **LUMIX Webcam Software**.
+  - Para todas: HDMI limpio a una capturadora para la mejor calidad y el menor retraso.
+- Cortiva **reconoce estas cámaras por su nombre** al conectarlas y las añade con un clic, con su micrófono si lo tienen.
+- La latencia estimada tiene en cuenta cómo está conectada la cámara: por el programa del fabricante, por el modo USB de la cámara o por HDMI. En cuanto el navegador puede medirla, se usa la medida real.
+- Consejos para sesiones largas: alimentación por corriente, apagado automático desactivado y pantalla HDMI limpia.
+- La pantalla de inicio también ofrece **Compartir pantalla o ventana**.
+
+### Límites conocidos
+- En modo webcam por USB casi ninguna cámara deja cambiar foco, ISO u obturador desde el ordenador. Si la cámara los ofrece, aparecen en el panel; si no, se ajustan en la cámara.
+- Aún sin probar con cámaras Canon, Nikon, Fujifilm o Lumix reales.
+
 ## 0.5.0-beta — 25 nov 2026
 
 ### iPad y iPhone

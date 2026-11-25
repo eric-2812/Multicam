@@ -45,13 +45,17 @@ Controls appear only when the camera supports them, driven through the browser's
 
 ## Connecting devices
 
-### iPhone, GoPro and Sony Alpha
+### iPhone, GoPro, Sony, Canon, Nikon, Fujifilm and Lumix
 
 | Camera | Picture into Cortiva | Recording on the camera |
 | --- | --- | --- |
 | **iPhone** | Continuity Camera on a Mac (shows up as “iPhone Camera”), or the Wi-Fi link in Safari on any computer | Over Wi-Fi the iPhone records its own full-quality file with each take |
 | **GoPro** (HERO8+) | Webcam mode over USB-C with the GoPro Webcam app (up to 1080p), or HDMI with the Media Mod into a capture card | Pair over Bluetooth (HERO9+, Open GoPro API): it records to its card with REC; battery and recording state are shown |
 | **Sony Alpha** (a7 IV, a7S III, FX3, ZV…) | USB Streaming (UVC/UAC, 4K on a 10 Gbps port, 720p on USB 2), or clean HDMI into a capture card | Pair as a Bluetooth remote (“Bluetooth Rmt Ctrl” on): it starts and stops recording to its card with REC |
+| **Canon** (EOS R / PowerShot) | Recent models (R8, R5 Mark II…) are UVC/UAC webcams on their own; others through EOS Webcam Utility; or clean HDMI into a capture card | — |
+| **Nikon** (Z / DSLR) | Z6III (fw 2.0+), Z f, Z50II: “USB streaming (UVC/UAC)”; others through Nikon Webcam Utility; or clean HDMI | — |
+| **Fujifilm** (X / GFX) | Newer models: connection mode “USB WEBCAM”; older: FUJIFILM X Webcam; or clean HDMI | — |
+| **Panasonic Lumix** | Newer models: USB mode “PC (Webcam)”; older: LUMIX Webcam Software (beta); or clean HDMI | — |
 
 Bluetooth control needs Chrome or Edge (Mac, Windows, ChromeOS, Android). The Sony protocol is the one Sony's RMT-P1BT remote uses, documented by the community and confirmed on the a7 III and ZV-1F; it has not been tested on an a7 IV yet.
 

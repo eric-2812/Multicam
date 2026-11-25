@@ -3348,3 +3348,9 @@ span.strip-name {
     animation: none;
   }
 }
+
+/* brand picker at the top of a device tab */
+.tab-body > .seg {
+  width: fit-content;
+  max-width: 100%;
+}

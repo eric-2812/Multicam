@@ -1,5 +1,5 @@
 import QRCode from 'qrcode'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   BT_HINT,
   addMic,
@@ -19,7 +19,7 @@ import { bleSupported, forgetRemote, pairGoPro, pairSony, reconnectRemote, remot
 import { joinUrl, onRoomStatus, openRoom, type RoomStatus } from '../engine/phone'
 import { store, toast, useStore, type AddTab } from '../store'
 import { Icon, LinkBadge } from './Icon'
-import { Switch } from './ui'
+import { Seg, Switch } from './ui'
 
 const TABS: { id: AddTab; label: string; icon: string }[] = [
   { id: 'usb', label: 'Cameras (USB & capture)', icon: 'usb' },
@@ -27,6 +27,7 @@ const TABS: { id: AddTab; label: string; icon: string }[] = [
   { id: 'iphone', label: 'iPhone', icon: 'phone' },
   { id: 'gopro', label: 'GoPro', icon: 'cam' },
   { id: 'sony', label: 'Sony Alpha', icon: 'camera' },
+  { id: 'mirrorless', label: 'Canon · Nikon · Fuji · Lumix', icon: 'camera' },
   { id: 'phone', label: 'Android / Wi-Fi', icon: 'wifi' },
   { id: 'url', label: 'IP camera', icon: 'network' },
   { id: 'bluetooth', label: 'Bluetooth', icon: 'bluetooth' },
@@ -577,6 +578,94 @@ function SonyTab() {
   )
 }
 
+type Brand = 'canon' | 'nikon' | 'fujifilm' | 'lumix'
+
+/** How each brand's cameras get their picture into a computer: built-in webcam mode, the maker's app, or HDMI. */
+const BRANDS: Record<Brand, { label: string; match: RegExp; what: string; steps: ReactNode[]; note: string }> = {
+  canon: {
+    label: 'Canon',
+    match: /canon|eos/i,
+    what: 'Canon camera',
+    steps: [
+      <>Recent EOS models (for example the EOS R8 and R5 Mark II) work as a USB webcam on their own (UVC/UAC, 1080p with sound): turn the camera on in movie mode and connect its USB-C port to the computer.</>,
+      <>
+        Other EOS and PowerShot models: install <b>EOS Webcam Utility</b> from Canon’s website, then connect the camera by USB. It shows up as “EOS Webcam Utility”.
+      </>,
+      <>For full quality and the lowest delay, use clean HDMI out into a capture card instead (then add it from “USB & capture”).</>,
+    ],
+    note: 'EOS Webcam Utility’s free version is limited; Canon sells a Pro subscription with higher resolution.',
+  },
+  nikon: {
+    label: 'Nikon',
+    match: /nikon/i,
+    what: 'Nikon camera',
+    steps: [
+      <>
+        Z6III (firmware 2.0 or later), Z f and Z50II: on the camera, Network menu → <b>USB</b> → <b>USB streaming (UVC/UAC)</b>, then connect the USB cable. No software needed.
+      </>,
+      <>
+        Other Z and DSLR models: install <b>Nikon Webcam Utility</b> from Nikon’s website and connect by USB.
+      </>,
+      <>For full quality, use clean HDMI out into a capture card (then add it from “USB & capture”).</>,
+    ],
+    note: 'USB streaming stops if the camera starts recording, its USB setting changes or the cable comes out.',
+  },
+  fujifilm: {
+    label: 'Fujifilm',
+    match: /fujifilm|fuji|x webcam/i,
+    what: 'Fujifilm camera',
+    steps: [
+      <>
+        Newer X and GFX models: SET-UP → CONNECTION SETTING → CONNECTION MODE → <b>USB WEBCAM</b>, then connect by USB. No software needed.
+      </>,
+      <>
+        Models without that option (X-T4, X-S10, X-Pro3, X100V and older): install <b>FUJIFILM X Webcam</b> (on macOS 14 or later, the version made for it) and connect by USB.
+      </>,
+      <>For full quality, use clean HDMI out into a capture card (then add it from “USB & capture”).</>,
+    ],
+    note: 'If the camera menu shows a webcam connection mode, use that rather than the X Webcam app — the two don’t work together.',
+  },
+  lumix: {
+    label: 'Lumix',
+    match: /lumix|panasonic/i,
+    what: 'Lumix camera',
+    steps: [
+      <>
+        Newer models: set the camera’s USB mode to <b>PC (Webcam)</b> and connect by USB. No software needed.
+      </>,
+      <>
+        Older models (S1, S5, GH5, G9 and similar): update the camera firmware, install <b>LUMIX Webcam Software</b> (beta) and connect by USB.
+      </>,
+      <>For full quality, use clean HDMI out into a capture card (then add it from “USB & capture”).</>,
+    ],
+    note: 'Panasonic labels its webcam software a beta without support; the built-in webcam mode or HDMI are more reliable.',
+  },
+}
+
+function MirrorlessTab() {
+  const [brand, setBrand] = useState<Brand>('canon')
+  const b = BRANDS[brand]
+  return (
+    <div className="tab-body">
+      <Seg label="Camera brand" value={brand} options={(Object.keys(BRANDS) as Brand[]).map((k) => ({ v: k, label: BRANDS[k].label }))} onChange={setBrand} />
+      <h4>Picture into Cortiva</h4>
+      <ol className="steps">
+        {b.steps.map((step, i) => (
+          <li key={i}>{step}</li>
+        ))}
+      </ol>
+      <Detected match={b.match} what={b.what} mics />
+      <h4>Tips for long shoots</h4>
+      <ul className="steps">
+        <li>Power it from the mains (dummy battery or USB-C power) and turn off auto power-off.</li>
+        <li>For HDMI, turn off the on-screen info on the HDMI output so the picture is clean.</li>
+        <li>A camera streaming over USB usually can’t record to its own card at the same time; with HDMI it can.</li>
+      </ul>
+      <p className="hint">{b.note} Camera settings show up here only when the camera reports them to the computer; most cameras in webcam mode don’t.</p>
+    </div>
+  )
+}
+
 function Connected() {
   const recording = useStore((s) => !!s.recordingSince)
   const sources = useStore((s) => s.sources)
@@ -721,6 +810,7 @@ export function DevicesSection() {
         {tab === 'iphone' && <IphoneTab />}
         {tab === 'gopro' && <GoProTab />}
         {tab === 'sony' && <SonyTab />}
+        {tab === 'mirrorless' && <MirrorlessTab />}
         {tab === 'phone' && <PhoneTab />}
         {tab === 'url' && <UrlTab />}
         {tab === 'bluetooth' && <BluetoothTab />}

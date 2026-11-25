@@ -11,7 +11,9 @@ const SOURCES: { tab: AddTab; icon: string; title: string; how: string }[] = [
   { tab: 'gopro', icon: 'cam', title: 'GoPro', how: 'Webcam mode over USB; record on the card via Bluetooth' },
   { tab: 'sony', icon: 'camera', title: 'Sony Alpha', how: 'USB streaming or HDMI; start recording via Bluetooth' },
   { tab: 'phone', icon: 'wifi', title: 'Android phone', how: 'Over Wi-Fi with a QR code' },
+  { tab: 'mirrorless', icon: 'camera', title: 'Canon, Nikon, Fuji or Lumix', how: 'USB webcam mode or HDMI capture' },
   { tab: 'url', icon: 'network', title: 'IP or PTZ camera', how: 'MJPEG, MP4 or HLS address' },
+  { tab: 'screen', icon: 'screen', title: 'Screen or app window', how: 'Share a screen, a window or a browser tab' },
 ]
 
 /** Sound sources: every mic becomes its own channel and file. */

@@ -307,7 +307,7 @@ export async function addWebcam(device: MediaDeviceInfo, quality: '720' | '1080'
   const track = stream.getVideoTracks()[0]
   const name = device.label || 'Camera'
   const link = guessLink(name)
-  const src = { ...newSource({ name: shortName(name), kind: 'webcam', link, detail: name, hw: capsOf(track), ...estimate(link) }), id }
+  const src = { ...newSource({ name: shortName(name), kind: 'webcam', link, detail: name, hw: capsOf(track), ...estimate(link, name) }), id }
   video.attachStream(src.id, stream)
   watchCamera(src.id, track, src.name, open)
   addSource(src)
@@ -533,10 +533,19 @@ export async function scanBluetooth() {
 }
 
 /** Typical latency per connection, used until the browser gives us a measurement. */
-function estimate(link: Link): { latency: number; latencyKind: 'estimated' } {
+function estimate(link: Link, label = ''): { latency: number; latencyKind: 'estimated' } {
   const ms: Record<Link, number> = { usb: 70, builtin: 50, wifi: 180, bluetooth: 200, network: 250, screen: 80 }
+  // A camera maker's webcam app re-encodes the picture on the computer; a camera's own USB
+  // streaming compresses it in the camera. Both arrive later than a plain webcam or HDMI capture.
+  if (link === 'usb' && WEBCAM_APP.test(label)) return { latency: 160, latencyKind: 'estimated' }
+  if (link === 'usb' && CAMERA_BRAND.test(label)) return { latency: 110, latencyKind: 'estimated' }
   return { latency: ms[link], latencyKind: 'estimated' }
 }
+
+/** Virtual webcams made by camera makers' apps (EOS Webcam Utility, Nikon Webcam Utility, X Webcam, LUMIX Webcam…). */
+const WEBCAM_APP = /webcam utility|x webcam|lumix webcam|lumix tether|gopro webcam/i
+/** Interchangeable-lens cameras streaming over USB on their own. */
+const CAMERA_BRAND = /canon|eos|nikon|fujifilm|lumix|panasonic|sony|ilce|ilme/i
 
 function shortName(label: string) {
   return label.replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)/i, '').replace(/^Default - /, '').slice(0, 28)
