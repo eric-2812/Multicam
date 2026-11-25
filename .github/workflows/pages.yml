@@ -1,8 +1,8 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages (manual)
 
+# The website is normally published by "Release (Windows)" with each release. This is only for
+# re-publishing the latest main by hand (Actions tab → Run workflow), e.g. if Pages broke.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

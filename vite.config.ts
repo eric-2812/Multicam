@@ -1,5 +1,8 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import { readFileSync } from 'node:fs'
+
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 
 // What the built page may load (the desktop app sends the same policy as a header). Scripts only
 // come from the app itself; pictures, video and connections stay open because IP cameras and the
@@ -32,4 +35,6 @@ export default defineConfig({
   // Relative paths so the build works on GitHub Pages or any subfolder.
   base: './',
   plugins: [react(), csp()],
+  // Shown in the status bar, so the web and the desktop app say which release they are.
+  define: { __APP_VERSION__: JSON.stringify(version) },
 })

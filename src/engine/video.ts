@@ -116,6 +116,23 @@ function scratch() {
   return scratchCanvas
 }
 
+/**
+ * Camera pictures are read from <video> elements that are never shown. Safari (iPad, iPhone)
+ * pauses video that isn't in the page and can then stop the camera, so keep them in it, tiny
+ * and invisible.
+ */
+let parking: HTMLDivElement | null = null
+function park(v: HTMLVideoElement) {
+  if (!parking) {
+    parking = document.createElement('div')
+    parking.setAttribute('aria-hidden', 'true')
+    Object.assign(parking.style, { position: 'fixed', left: '0', top: '0', width: '2px', height: '2px', overflow: 'hidden', opacity: '0.01', pointerEvents: 'none', zIndex: '-1' })
+    document.body.appendChild(parking)
+  }
+  Object.assign(v.style, { width: '2px', height: '2px' })
+  parking.appendChild(v)
+}
+
 class VideoEngine {
   private runtimes = new Map<string, Runtime>()
   /** Program and preview are always composed (so the program can record from any page). */
@@ -152,11 +169,16 @@ class VideoEngine {
 
   attachStream(id: string, stream: MediaStream, extra?: Partial<Runtime>) {
     const rt = this.runtime(id)
+    if (rt.media instanceof HTMLVideoElement) {
+      rt.media.srcObject = null
+      rt.media.remove()
+    }
     const v = document.createElement('video')
     v.muted = true
     v.playsInline = true
     v.autoplay = true
     v.srcObject = stream
+    park(v)
     void v.play().catch(() => {})
     rt.media = v
     rt.stream = stream
@@ -221,6 +243,7 @@ class VideoEngine {
     if (rt.media instanceof HTMLVideoElement) {
       rt.media.srcObject = null
       rt.media.removeAttribute('src')
+      rt.media.remove()
     }
     this.runtimes.delete(id)
   }

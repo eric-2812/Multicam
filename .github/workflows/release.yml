@@ -1,8 +1,9 @@
 name: Release (Windows)
 
 # Publishes a NEW release for the version in package.json, with the notes from its CHANGELOG.md
-# section. Run it by hand from the Actions tab (or push a matching v* tag). It refuses to
-# publish a version that already has a release: bump the version for every change.
+# section, then puts the same version on the website (GitHub Pages), so the web and the .exe
+# are always the same release. Run it by hand from the Actions tab (or push a matching v* tag).
+# It refuses to publish a version that already has a release: bump the version for every change.
 on:
   push:
     tags: ['v*']
@@ -59,3 +60,28 @@ jobs:
           files: |
             release/Cortiva-Setup-*.exe
             release/Cortiva-*-portable.exe
+
+  # The website is updated only by a release, from the same commit, once the .exe files are out.
+  web:
+    needs: windows
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: touch dist/.nojekyll
+      - uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true

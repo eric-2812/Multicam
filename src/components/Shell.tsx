@@ -153,6 +153,9 @@ function StatusBar() {
       </button>
       <span className="grow" />
       <span className="mono">{fps} fps render</span>
+      <span className="mono hide-sm" title={`Cortiva ${__APP_VERSION__}`}>
+        v{__APP_VERSION__}
+      </span>
     </footer>
   )
 }

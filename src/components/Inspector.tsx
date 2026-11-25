@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { applyHardware, changeSettings, removeSource, revive, reviving, setMode } from '../engine/devices'
+import { applyHardware, changeSettings, removeSource, revival, revive, setMode } from '../engine/devices'
 import {
   FOCUS_STOPS,
   ISO_STOPS,
@@ -222,25 +222,31 @@ function CameraSection({ src }: { src: VideoSource }) {
         </Row>
       )}
       <HwSummary src={src} />
-      {src.status !== 'live' && (
-        <p className="warn">
-          {src.status !== 'lost'
-            ? 'Connecting…'
-            : reviving(src.id)
-              ? 'Signal lost — reconnecting. If another app (another tab, the Cortiva app, Teams, Camera…) is using this camera, close it.'
-              : 'Signal lost — waiting for the device to come back.'}
-          {src.status === 'lost' && reviving(src.id) && (
-            <>
-              {' '}
-              <button className="linkbtn" onClick={() => void revive(src.id)}>
-                Try now
-              </button>
-            </>
-          )}
-        </p>
-      )}
+      {src.status !== 'live' && <LostNote src={src} />}
       {src.tainted && <p className="warn">This network stream blocks capture (no CORS headers): it shows here but can't be recorded.</p>}
     </Section>
+  )
+}
+
+function LostNote({ src }: { src: VideoSource }) {
+  if (src.status !== 'lost') return <p className="warn">Connecting…</p>
+  const how = revival(src.id)
+  return (
+    <p className="warn">
+      {how === 'manual'
+        ? 'Stopped because another camera of this device took over — iPad and iPhone run one of their cameras at a time.'
+        : how === 'auto'
+          ? 'Signal lost — reconnecting. If another app (another tab, the Cortiva app, Teams, Camera…) is using this camera, close it.'
+          : 'Signal lost — waiting for the device to come back.'}
+      {how && (
+        <>
+          {' '}
+          <button className="linkbtn" onClick={() => void revive(src.id)}>
+            {how === 'manual' ? 'Switch back' : 'Try now'}
+          </button>
+        </>
+      )}
+    </p>
   )
 }
 

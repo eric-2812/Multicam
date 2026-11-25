@@ -17,8 +17,9 @@ publishing a **new** GitHub release — never re-publish or overwrite an existin
 4. Start the **Release (Windows)** workflow (`.github/workflows/release.yml`) with a
    workflow_dispatch on `main`. Cloud sessions can't push tags, which is why it's dispatched; the
    workflow creates the `v<version>` tag itself. It stops if that version was already released.
-5. Wait for it, confirm the release has both `.exe` files, and give the owner the release link and
-   a short summary of what changed.
+   After the release it publishes the same build to the website (GitHub Pages, job `web`).
+5. Wait for it, confirm the release has both `.exe` files and that the `web` job passed, and give
+   the owner the release link and a short summary of what changed.
 
 Changes that don't touch the app (docs, CI only) don't need a release.
 
@@ -27,5 +28,6 @@ Changes that don't touch the app (docs, CI only) don't need a release.
 - React + Vite web app in `src/`; `npm run build` typechecks and builds `dist/`.
 - Windows desktop app: Electron (`electron/main.cjs`) packaged by electron-builder (`build` in
   `package.json`) into an NSIS installer and a portable `.exe`.
-- The web version deploys to GitHub Pages on every push to `main` (`.github/workflows/pages.yml`);
-  phones join through it.
+- The web version (https://eric-2812.github.io/cortiva/) is published by each release, not by
+  pushes; `pages.yml` only re-publishes by hand. Phones join through it. The repository was
+  renamed from Multicam to cortiva.

@@ -2,6 +2,18 @@
 
 Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
 
+## 0.5.0-beta — 25 nov 2026
+
+### iPad y iPhone
+- **La cámara del iPad ya no "se pierde" sin explicación.** iPad y iPhone solo pueden usar una de sus cámaras a la vez en el navegador: al añadir otra, la primera se para. Ahora Cortiva te avisa antes, explica por qué se paró y tiene un botón **Switch back** para volver a ella.
+- Arreglado un fallo de la 0.4 en iPad: dos cámaras del mismo iPad podían quitarse la señal la una a la otra sin parar.
+- La imagen de las cámaras se mantiene dentro de la página para que Safari no la pause.
+- Para más ángulos con un iPad, une otros móviles por Wi-Fi (pestaña iPhone o Android / Wi-Fi).
+
+### Web
+- **La web ahora se actualiza con cada release**, con exactamente la misma versión que los `.exe`. Antes se actualizaba con cada cambio, aunque no hubiera release.
+- La barra de estado de abajo muestra la versión (por ejemplo **v0.5.0-beta**), en la web y en la app.
+
 ## 0.4.0-beta — 25 nov 2026
 
 ### Arreglos

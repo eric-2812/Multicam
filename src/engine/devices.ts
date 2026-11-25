@@ -174,14 +174,36 @@ interface Revival {
   tries: number
   busy: boolean
   inUseWarned: boolean
+  /** Pushed out by another camera of the same device: only comes back when asked. */
+  displaced: boolean
 }
 const revivals = new Map<string, Revival>()
+
+/** iPad and iPhone browsers run one built-in camera at a time (iPadOS reports itself as a Mac). */
+export const oneCameraAtATime =
+  typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+
+/**
+ * When this page opens a camera. A camera whose signal ends while another one is being opened
+ * was pushed out by it (iPad / iPhone, some Windows drivers): reopening it would push the new one
+ * out in turn, forever. Those wait for the user instead.
+ */
+let opening = { id: '', since: 0, until: 0 }
+async function openTracked<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  opening = { id, since: performance.now(), until: Infinity }
+  try {
+    return await fn()
+  } finally {
+    opening = { ...opening, until: performance.now() }
+  }
+}
+const displacedBy = (id: string) => (opening.id !== id && performance.now() - opening.until < 2500 ? opening.id : null)
 const RETRY_MS = [1000, 2000, 4000, 8000, 15000, 30000]
 
 if (typeof navigator !== 'undefined') {
   // A camera plugged back in shows up as a device change: try at once.
   navigator.mediaDevices?.addEventListener?.('devicechange', () => {
-    for (const id of revivals.keys()) void revive(id)
+    for (const [id, r] of revivals) if (!r.displaced) void revive(id)
   })
 }
 
@@ -191,9 +213,17 @@ function watchCamera(id: string, track: MediaStreamTrack, name: string, reopen: 
     const cur = store.get().sources.find((s) => s.id === id)
     if (!cur) return
     updateSource(id, { status: 'lost' })
-    toast(`${cur.name} lost its signal — reconnecting…`, 'bad')
-    const r: Revival = { name, reopen, timer: 0, tries: 0, busy: false, inUseWarned: false }
+    const r: Revival = { name, reopen, timer: 0, tries: 0, busy: false, inUseWarned: false, displaced: false }
     revivals.set(id, r)
+    const by = displacedBy(id)
+    if (by) {
+      // Another camera of this device took over: don't fight it.
+      r.displaced = true
+      const other = store.get().sources.find((s) => s.id === by)
+      toast(`${cur.name} stopped: this device runs one of its cameras at a time${other ? `, and ${other.name} took over` : ''}. Use “Try now” on ${cur.name} to switch back.`, 'bad')
+      return
+    }
+    toast(`${cur.name} lost its signal — reconnecting…`, 'bad')
     schedule(id, r)
   })
 }
@@ -212,7 +242,7 @@ export async function revive(id: string) {
   r.busy = true
   clearTimeout(r.timer)
   try {
-    const stream = await r.reopen()
+    const stream = await openTracked(id, r.reopen)
     const track = stream.getVideoTracks()[0]
     const now = store.get().sources.find((s) => s.id === id)
     if (!now) {
@@ -228,6 +258,10 @@ export async function revive(id: string) {
     toast(`${now.name} is back`, 'good')
   } catch (e) {
     r.tries++
+    if (r.displaced) {
+      toast(`${cur.name} could not start again`, 'bad')
+      return
+    }
     // Windows only lets one app use most cameras at a time.
     if ((e as DOMException).name === 'NotReadableError' && !r.inUseWarned) {
       r.inUseWarned = true
@@ -245,8 +279,11 @@ function stopReviving(id: string) {
   revivals.delete(id)
 }
 
-/** Whether Cortiva is still trying to get this camera back. */
-export const reviving = (id: string) => revivals.has(id)
+/** Whether this lost camera can come back: 'auto' (retrying by itself) or 'manual' (pushed out). */
+export function revival(id: string): 'auto' | 'manual' | null {
+  const r = revivals.get(id)
+  return r ? (r.displaced ? 'manual' : 'auto') : null
+}
 
 /** Open a camera asking for PTZ access too — Chrome only reports pan / tilt / zoom when asked. */
 export async function openCameraStream(video: MediaTrackConstraints) {
@@ -261,11 +298,16 @@ export async function openCameraStream(video: MediaTrackConstraints) {
 export async function addWebcam(device: MediaDeviceInfo, quality: '720' | '1080' | '4k') {
   const h = quality === '4k' ? 2160 : quality === '1080' ? 1080 : 720
   const open = () => openCameraStream({ deviceId: { exact: device.deviceId }, height: { ideal: h }, width: { ideal: (h * 16) / 9 }, frameRate: { ideal: 30 } })
-  const stream = await open()
+  const id = uid('cam')
+  if (oneCameraAtATime) {
+    const running = store.get().sources.find((s) => s.kind === 'webcam' && s.status === 'live')
+    if (running) toast(`iPad and iPhone run one of their cameras at a time: ${running.name} will stop. Join other phones over Wi-Fi for more angles.`, 'info')
+  }
+  const stream = await openTracked(id, open)
   const track = stream.getVideoTracks()[0]
   const name = device.label || 'Camera'
   const link = guessLink(name)
-  const src = newSource({ name: shortName(name), kind: 'webcam', link, detail: name, hw: capsOf(track), ...estimate(link) })
+  const src = { ...newSource({ name: shortName(name), kind: 'webcam', link, detail: name, hw: capsOf(track), ...estimate(link) }), id }
   video.attachStream(src.id, stream)
   watchCamera(src.id, track, src.name, open)
   addSource(src)
