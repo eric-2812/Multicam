@@ -2,6 +2,14 @@
 
 Every version is its own release on GitHub. Each version's section below is what its release notes say.
 
+## 0.15.0-beta — 26 Nov 2026
+
+### Presentation page fixes
+- **The big Cortiva name at the bottom** no longer has its letters running into each other: it's now Cortiva's mark and name, evenly spaced.
+- **The editor timeline** in "How multicam recording works" is clearer: a time ruler, the program's cuts between cameras 1, 2 and 3, and a playhead that stays on the tracks and lights up the camera on air as it passes.
+- **Audio meters and faders** move smoothly, like real sound levels, instead of jumping.
+- **The list of a take's files** fades out before it plays again, instead of vanishing at once.
+
 ## 0.14.0-beta — 26 Nov 2026
 
 ### Presentation page polish

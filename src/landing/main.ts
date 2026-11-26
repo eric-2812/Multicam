@@ -48,20 +48,21 @@ const writeTc = () => {
 }
 const tcLoop = animeAnimate(tc, { frames: [0, 60 * 60 * fps], duration: 60 * 60 * 1000, ease: 'linear', loop: true, autoplay: false, onUpdate: writeTc })
 
-const bounce = (els: HTMLElement[], prop: 'scaleX' | 'scaleY', lo: [number, number], hi: [number, number], slow: [number, number]) =>
-  els.map((el, i) =>
-    animeAnimate(el, {
-      [prop]: () => [utils.random(lo[0], lo[1], 2), utils.random(hi[0], hi[1], 2)],
-      duration: () => utils.random(slow[0], slow[1]),
-      ease: 'inOutSine',
-      alternate: true,
+// A level that moves like sound: a smooth run through random peaks that ends where it started, so
+// the loop never jumps.
+const levels = (els: HTMLElement[], prop: 'scaleX' | 'scaleY', lo: number, hi: number) =>
+  els.map((el, i) => {
+    const pts = Array.from({ length: 14 }, () => utils.random(lo, hi, 2))
+    pts.push(pts[0])
+    return animeAnimate(el, {
+      [prop]: pts.map((to) => ({ to, duration: utils.random(110, 220), ease: 'inOutQuad' })),
       loop: true,
-      delay: i * 80,
+      delay: i * 60,
       autoplay: false,
-    }),
-  )
+    })
+  })
 
-const meterLoops = bounce($$('[data-meter]'), 'scaleX', [0.15, 0.35], [0.55, 0.95], [180, 420])
+const meterLoops = levels($$('[data-meter]'), 'scaleX', 0.25, 0.92)
 // the camera "pictures": lights drifting slowly, as seen through a lens
 const glowLoops = $$('.glow').map((g, i) =>
   animeAnimate(g, {
@@ -111,19 +112,40 @@ rows.forEach((row, i) =>
     i === 0 ? 300 : '-=120',
   ),
 )
-filesTl.add({}, { duration: 1500 })
+// hold the full take, then let it fade before the next one lands
+filesTl.add(rows, { opacity: 0, translateY: [0, -4], duration: 320, ease: 'inQuad', delay: 1600 })
+filesTl.add({}, { duration: 200 })
 const filesLoop: Loop = { play: () => filesTl.play(), pause: () => filesTl.pause() }
 
-// the editor's playhead sweeping across the lined-up tracks
+// the editor's playhead crossing the lined-up tracks; the program cut under it lights up
 const playhead = $('[data-playhead]')
+const tlEl = $('.tl')
+const segs = $$('.tl-pgm .seg')
+const laneWidth = () => $('.tl-pgm .lane')?.getBoundingClientRect().width ?? 0
 const headLoop = playhead
-  ? animeAnimate(playhead, { left: ['72px', 'calc(100% - 26px)'], duration: 3600, ease: 'linear', loop: true, autoplay: false })
+  ? animeAnimate(playhead, {
+      translateX: [0, () => laneWidth()],
+      duration: 4800,
+      ease: 'linear',
+      loop: true,
+      autoplay: false,
+      onUpdate: (a) => {
+        // where the head is in this pass (progress counts all the passes of the endless loop)
+        const at = a.iterationProgress * 100
+        segs.forEach((g) => {
+          const from = parseFloat(g.style.getPropertyValue('--a'))
+          const to = parseFloat(g.style.getPropertyValue('--b'))
+          g.classList.toggle('is-live', at >= from && at < to)
+        })
+      },
+    })
   : null
+if (tlEl) new ResizeObserver(() => headLoop?.refresh()).observe(tlEl)
 const editLoop: Loop = { play: () => headLoop?.play(), pause: () => headLoop?.pause() }
 
 // ------------------------------------------------------------ the camera cards
 
-const faderLoops = bounce($$('[data-fader]'), 'scaleY', [0.25, 0.45], [0.6, 0.95], [260, 520])
+const faderLoops = levels($$('[data-fader]'), 'scaleY', 0.3, 0.92)
 const allow = $('[data-allow]')
 let allowTimer = 0
 const camsLoop: Loop = {

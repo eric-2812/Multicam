@@ -160,13 +160,17 @@
                 <h3>Edit the multicam clip</h3>
                 <p>Drop the folder into Premiere Pro, DaVinci Resolve or Final Cut Pro: the files line up by timecode with no hand syncing.</p>
                 <figure class="mo-pc__visual">
-                  <div class="viz viz-edit" role="img" aria-label="An editor timeline with three camera tracks and two audio tracks lined up">
-                    <div class="tl-row"><b>C1</b><span class="clip clip-v" style="--s: 0%; --w: 100%"></span></div>
-                    <div class="tl-row"><b>C2</b><span class="clip clip-v" style="--s: 0%; --w: 100%"></span></div>
-                    <div class="tl-row"><b>C3</b><span class="clip clip-v" style="--s: 0%; --w: 100%"></span></div>
-                    <div class="tl-row"><b>A1</b><span class="clip clip-a" style="--s: 0%; --w: 100%"></span></div>
-                    <div class="tl-row"><b>A2</b><span class="clip clip-a" style="--s: 0%; --w: 100%"></span></div>
-                    <span class="playhead" data-playhead></span>
+                  <div class="viz viz-edit" role="img" aria-label="An editor's multicam clip: the program cutting between three cameras, every track lined up by timecode">
+                    <div class="tl">
+                      <div class="tl-ruler"><span>00:00</span><span>00:15</span><span>00:30</span><span>00:45</span></div>
+                      <div class="tl-row tl-pgm"><b>PGM</b><span class="lane"><i class="seg seg-1" style="--a: 0%; --b: 30%">C1</i><i class="seg seg-2" style="--a: 30%; --b: 52%">C2</i><i class="seg seg-3" style="--a: 52%; --b: 74%">C3</i><i class="seg seg-1" style="--a: 74%; --b: 100%">C1</i></span></div>
+                      <div class="tl-row"><b>C1</b><span class="lane"><i class="clip clip-v"></i></span></div>
+                      <div class="tl-row"><b>C2</b><span class="lane"><i class="clip clip-v"></i></span></div>
+                      <div class="tl-row"><b>C3</b><span class="lane"><i class="clip clip-v"></i></span></div>
+                      <div class="tl-row"><b>A1</b><span class="lane"><i class="clip clip-a"></i></span></div>
+                      <div class="tl-row"><b>A2</b><span class="lane"><i class="clip clip-a"></i></span></div>
+                      <span class="tl-head" data-playhead></span>
+                    </div>
                   </div>
                 </figure>
               </li>
@@ -302,7 +306,7 @@
               >Download for Windows<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8" /><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5" /></svg
             ></a>
           </div>
-          <p class="close__word" aria-hidden="true">Cortiva</p>
+          <p class="close__word close__lockup" aria-hidden="true"><span class="c-mark c-mark--xl"><i></i><i></i><i></i><i></i></span>Cortiva</p>
         </div>
         <div class="closing__links">
           <div class="grid">
