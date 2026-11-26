@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ACTIONS, RESERVED, bind, comboOf, prettyKey, resetBindings, setCapturing, useBindings, type Group, type KeyAction } from '../engine/keys'
 import { saveFolder } from '../engine/persist'
-import { chooseFolder, folderSupported } from '../engine/recorder'
+import { chooseFolder, folderSupported, pixelFactor } from '../engine/recorder'
 import { store, toast, updateSource, useStore, type SetupSection } from '../store'
 import { DevicesSection } from './Devices'
 import { Icon } from './Icon'
@@ -49,7 +49,9 @@ function RecordingSection() {
   const armed = sources.filter((s) => s.rec.armed).length
   const mp4 = typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/mp4')
   const webm = typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/webm')
-  const gbPerHour = ((armed + (rec.program ? 1 : 0)) * MBPS[rec.quality] * 3600) / 8 / 1024 + (rec.mics ? channels * 0.09 : 0)
+  // Each camera at its own resolution (a 4K camera writes about four times as much as 1080p).
+  const camUnits = sources.filter((s) => s.rec.armed).reduce((a, s) => a + (s.rec.feed === 'clean' ? pixelFactor(s.hw?.width, s.hw?.height) : 0.5), 0)
+  const gbPerHour = ((camUnits + (rec.program ? 1 : 0)) * MBPS[rec.quality] * 3600) / 8 / 1024 + (rec.mics ? channels * 0.09 : 0)
   return (
     <div className="form">
       <fieldset disabled={recording} className="fs">

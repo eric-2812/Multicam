@@ -43,7 +43,7 @@ export interface RecConfig {
 
 export interface TakeFile {
   name: string
-  kind: 'camera' | 'audio' | 'program' | 'sidecar' | 'phone'
+  kind: 'camera' | 'audio' | 'program' | 'sidecar' | 'phone' | 'card'
   bytes: number
 }
 

@@ -55,6 +55,8 @@ export interface SavedSetup {
   master: number
   cams: SavedCam[]
   mics: SavedMic[]
+  /** Finished takes, so card files can still be added after Cortiva is reopened. */
+  takes?: State['takes']
 }
 
 function snapshot(s: State): SavedSetup {
@@ -72,6 +74,7 @@ function snapshot(s: State): SavedSetup {
     lowerThird: { title: s.lowerThird.title, subtitle: s.lowerThird.subtitle },
     monitor: s.monitor,
     master: s.master,
+    takes: s.takes.filter((t) => t.endMs !== null).slice(0, 50),
     cams: s.sources
       .filter((x): x is VideoSource & { kind: 'webcam' | 'url' } => x.kind === 'webcam' || (x.kind === 'url' && !!x.url))
       .map((x) => ({
@@ -129,6 +132,7 @@ export function restoreSettings() {
     lowerThird: { ...s.lowerThird, ...v.lowerThird, on: false },
     monitor: { ...s.monitor, ...v.monitor },
     master: typeof v.master === 'number' ? v.master : s.master,
+    takes: Array.isArray(v.takes) ? v.takes.filter((t) => isObj(t) && Array.isArray(t.files) && typeof t.name === 'string') : s.takes,
   }))
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { recorder, whyCantRecord } from '../engine/recorder'
+import { chooseFolder, destLabel, folderSupported, recorder, whyCantRecord } from '../engine/recorder'
+import { saveFolder } from '../engine/persist'
 import { masterTC, nowMs, runTC } from '../engine/timecode'
 import { video } from '../engine/video'
 import { handleKey, useOsd } from '../engine/keys'
@@ -114,6 +115,7 @@ function Header() {
         <span className="hdr-proj-name">{project.name}</span>
         <span className="hdr-take">Take {String(project.take).padStart(3, '0')}</span>
       </div>
+      <SaveTo />
       <div className="hdr-transport">
         <Timecode />
         <button className="tbtn tbtn-marker" onClick={() => recorder.marker()} disabled={!since} title="Add a marker (M)">
@@ -147,7 +149,7 @@ function StatusBar() {
       </span>
       <span>{mics} mics</span>
       <button className="st-link" onClick={() => store.set({ page: 'setup', setupSection: 'recording' })}>
-        <Icon name="folder" size={12} /> {rec.dest === 'folder' && rec.folderName ? rec.folderName : 'Downloads'} · {rec.format.toUpperCase()}
+        <Icon name="folder" size={12} /> {destLabel(rec)} · {rec.format.toUpperCase()}
       </button>
       <button className="st-link" onClick={() => store.set({ page: 'setup', setupSection: 'sync' })}>
         <span className={`dot ${aligned ? 'dot-ok' : 'dot-warn'}`} /> {aligned ? 'In sync' : 'Sync off'}
@@ -209,6 +211,37 @@ function useShortcuts() {
 }
 
 type UpdateInfo = Parameters<Parameters<NonNullable<Window['cortivaDesktop']>['onUpdate']>[0]>[0]
+
+/** Where the files go, always in view: one click picks another folder. */
+function SaveTo() {
+  const rec = useStore((s) => s.rec)
+  const recording = useStore((s) => !!s.recordingSince)
+  const where = destLabel(rec)
+  const pick = () => {
+    if (!folderSupported()) {
+      toast('Choosing a folder needs Chrome or Edge on a computer (or the desktop app). Files go to Downloads.', 'info')
+      return store.set({ page: 'setup', setupSection: 'recording' })
+    }
+    void chooseFolder()
+      .then((h) => {
+        void saveFolder(h)
+        toast(`Recordings go to “${h.name}” — each take in its own folder`, 'good')
+      })
+      .catch(() => {})
+  }
+  return (
+    <button
+      className="hdr-dest"
+      onClick={pick}
+      disabled={recording}
+      title={recording ? `Saving to ${where}` : `Saving to ${where} — click to choose another folder`}
+      aria-label={`Recordings are saved to ${where}. Choose another folder`}
+    >
+      <Icon name="folder" size={13} />
+      <span className="hdr-dest-name">{where}</span>
+    </button>
+  )
+}
 
 /** Desktop app: a new version downloads by itself; this says so and offers to restart into it. */
 function useUpdate() {

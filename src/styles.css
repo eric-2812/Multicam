@@ -696,6 +696,32 @@ kbd {
   white-space: nowrap;
 }
 
+.hdr-dest {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 220px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.hdr-dest:hover:not(:disabled) {
+  border-color: var(--line-2);
+  color: var(--hi);
+}
+
+.hdr-dest-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hdr-transport {
   display: flex;
   align-items: center;
@@ -3473,4 +3499,54 @@ span.strip-name {
 .update-banner b {
   color: var(--hi);
   font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .hdr-dest-name {
+    display: none;
+  }
+}
+
+/* bringing camera-card files into a take */
+.card-import {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.card-import .row {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.card-import .hint {
+  margin: 0;
+}
+
+.card-list {
+  display: grid;
+  gap: 6px;
+}
+
+.card-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(140px, 220px);
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.card-row .file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .card-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .card-row select {
+    grid-column: 1 / -1;
+  }
 }

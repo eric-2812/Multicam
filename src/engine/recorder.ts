@@ -63,7 +63,21 @@ function downloadSink(name: string, type: string): Sink {
   }
 }
 
+/** Bits per second for 1080p; other sizes scale with the number of pixels (4K gets four times as much). */
 const BITRATE = { low: 4_000_000, med: 8_000_000, high: 16_000_000 }
+export const pixelFactor = (w?: number, h?: number) => Math.max(0.5, Math.min(4.5, ((w || 1920) * (h || 1080)) / (1920 * 1080)))
+
+/** Where the next take goes, in words. */
+export function destLabel(rec: State['rec']) {
+  if (rec.dest === 'folder' && rec.folderName) return rec.folderName
+  return window.cortivaDesktop ? 'Videos\\Cortiva' : 'Downloads'
+}
+
+/** Ask for permission to write in the chosen folder (needs a click or key press). */
+async function writable(dir: DirHandle) {
+  const perm = (await dir.queryPermission?.({ mode: 'readwrite' })) ?? 'granted'
+  return perm === 'granted' || (await dir.requestPermission?.({ mode: 'readwrite' })) === 'granted'
+}
 
 function pickMime(format: 'mp4' | 'webm', kind: 'av' | 'v' | 'a') {
   const opts = {
@@ -183,8 +197,7 @@ class Recorder {
     try {
       this.dir = null
       if (cfg.dest === 'folder' && folder) {
-        const perm = (await folder.queryPermission?.({ mode: 'readwrite' })) ?? 'granted'
-        if (perm !== 'granted' && (await folder.requestPermission?.({ mode: 'readwrite' })) !== 'granted') {
+        if (!(await writable(folder))) {
           throw new Error('No permission to write to the recording folder. Choose it again in Setup → Recording.')
         }
         this.dir = await folder.getDirectoryHandle(base, { create: true })
@@ -207,7 +220,9 @@ class Recorder {
         if (cfg.scratch && mix) tracks.push(mix.clone())
         const mime = pickMime(cfg.format, tracks.length > 1 ? 'av' : 'v')
         const name = `${base}_C${src.number}_${safe(src.name)}_${tc}.${extOf(mime, false)}`
-        await this.addTrack(new MediaStream(tracks), name, mime, 'camera', bitrate, src.id)
+        // A 4K camera gets four times the bitrate of a 1080p one, so its file keeps the detail.
+        const { width, height } = v.getSettings()
+        await this.addTrack(new MediaStream(tracks), name, mime, 'camera', Math.round(bitrate * pixelFactor(width, height)), src.id)
       }
       if (cfg.mics) {
         for (const [i, ch] of st.channels.filter((c) => c.status === 'live').entries()) {
@@ -402,3 +417,99 @@ function buildCsv(log: LogEvent[], since: number, fps: 25 | 30) {
 }
 
 export const recorder = new Recorder()
+
+// ------------------------------------------------------------ files from the cameras' own cards
+// Cameras that also record on their card (often in 4K) keep the best copy there. After a take,
+// those files are brought into it: copied into the take's folder with the same naming, so the
+// editor sees them next to the others, and listed in <take>_cards.json.
+
+export interface CardFile {
+  file: File
+  /** Camera it came from: its number in Cortiva (0 if it isn't one) and its name. */
+  number: number
+  camera: string
+}
+
+function durationOf(file: File): Promise<number | null> {
+  return new Promise((res) => {
+    const v = document.createElement('video')
+    const url = URL.createObjectURL(file)
+    const done = (d: number | null) => {
+      URL.revokeObjectURL(url)
+      res(d)
+    }
+    v.preload = 'metadata'
+    v.onloadedmetadata = () => done(Number.isFinite(v.duration) ? Math.round(v.duration * 10) / 10 : null)
+    v.onerror = () => done(null)
+    setTimeout(() => done(null), 5000)
+    v.src = url
+  })
+}
+
+/** Whether the take's own folder can be written to (else the files download). */
+export function takeHasFolder(take: Take) {
+  return !!folder && take.dest.startsWith(`${folder.name}/`)
+}
+
+export async function addCardFiles(take: Take, items: CardFile[], progress: (done: number, total: number) => void) {
+  const total = items.reduce((a, i) => a + i.file.size, 0)
+  let done = 0
+  const dir = takeHasFolder(take) && (await writable(folder!)) ? await folder!.getDirectoryHandle(take.name, { create: true }) : null
+  const added: TakeFile[] = []
+  const listed: object[] = []
+  const counts = new Map<string, number>()
+  for (const it of items) {
+    const ext = (/\.([A-Za-z0-9]{2,5})$/.exec(it.file.name)?.[1] ?? 'mp4').toLowerCase()
+    const who = it.number ? `C${it.number}_${safe(it.camera)}` : safe(it.camera)
+    const n = (counts.get(who) ?? 0) + 1
+    counts.set(who, n)
+    const name = `${take.name}_${who}_CARD${n > 1 ? `_${n}` : ''}.${ext}`
+    if (take.files.some((f) => f.name === name)) continue
+    if (dir) {
+      const fh = await dir.getFileHandle(name, { create: true })
+      const w = (await fh.createWritable()) as unknown as WritableStream<Uint8Array>
+      let fileDone = 0
+      // Copy in pieces, so files of many gigabytes don't have to fit in memory.
+      await it.file.stream().pipeThrough(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, c) {
+            fileDone += chunk.byteLength
+            progress(done + fileDone, total)
+            c.enqueue(chunk)
+          },
+        }),
+      ).pipeTo(w)
+    } else {
+      download(it.file, name)
+    }
+    done += it.file.size
+    progress(done, total)
+    added.push({ name, kind: 'card', bytes: it.file.size })
+    listed.push({
+      file: name,
+      camera: it.camera,
+      cameraNumber: it.number || null,
+      originalName: it.file.name,
+      sizeBytes: it.file.size,
+      durationSeconds: await durationOf(it.file),
+      cameraClockModified: new Date(it.file.lastModified).toISOString(),
+      note: "Recorded on the camera's own card. Line it up with the slate, or by audio waveform with the take's camera files.",
+    })
+  }
+  if (!added.length) return 0
+  const sheet = JSON.stringify({ take: take.name, cards: listed }, null, 2)
+  const sheetName = `${take.name}_cards.json`
+  if (dir) {
+    const w = await (await dir.getFileHandle(sheetName, { create: true })).createWritable()
+    await w.write(new Blob([sheet], { type: 'application/json' }))
+    await w.close()
+  } else download(new Blob([sheet], { type: 'application/json' }), sheetName)
+  store.set((s) => ({
+    takes: s.takes.map((t) =>
+      t.number === take.number && t.startMs === take.startMs
+        ? { ...t, files: [...t.files.filter((f) => f.name !== sheetName), ...added, { name: sheetName, kind: 'sidecar', bytes: sheet.length }] }
+        : t,
+    ),
+  }))
+  return added.length
+}

@@ -2,6 +2,23 @@
 
 Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
 
+## 0.11.0-beta — 26 nov 2026
+
+### Elegir dónde se guarda
+- **Arriba, junto al número de toma, ahora se ve siempre dónde se guardan las grabaciones** (por ejemplo "Downloads" o el nombre de tu carpeta). Un clic abre el selector para elegir otra carpeta, y cada toma se guarda en su propia subcarpeta dentro.
+- Se recuerda la próxima vez que abras Cortiva (el navegador vuelve a pedir permiso en la primera toma).
+- En la app de escritorio, sin carpeta elegida, se indica que las grabaciones van a **Vídeos\Cortiva**.
+- Elegir carpeta necesita Chrome, Edge o la app de escritorio. En otros navegadores las grabaciones se descargan.
+
+### Los archivos 4K de las tarjetas, dentro de la toma
+- En **Takes**, cada toma tiene **"Add files from camera cards (4K)"**. Eliges los archivos que las cámaras grabaron en su tarjeta (GoPro, Sony, Canon, el móvil…) y para cada uno dices de qué cámara es.
+- Se copian a la carpeta de la toma con el mismo estilo de nombre (por ejemplo `Boda_T003_C2_Sony_CARD.mp4`), para que el editor los vea junto al resto. Si no hay carpeta elegida, se guardan como descarga.
+- También se crea `…_cards.json` con el nombre original, la duración y la hora de la cámara de cada archivo. Para alinearlos, usa la claqueta o la forma de onda del audio.
+- Las tomas se recuerdan al cerrar Cortiva, así que puedes añadir los archivos de las tarjetas más tarde.
+
+### Más calidad en 4K
+- Cada cámara se graba con una calidad acorde a su resolución: una cámara 4K recibe cuatro veces más datos que una 1080p, así que su archivo conserva el detalle. El cálculo de espacio por hora de Setup → Recording lo tiene en cuenta.
+
 ## 0.10.0-beta — 26 nov 2026
 
 ### Nuevo: la app se actualiza sola
