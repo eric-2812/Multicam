@@ -109,7 +109,7 @@ function createWindow() {
     return { action: 'deny' }
   })
 
-  win.loadURL('cortiva://app/index.html')
+  win.loadURL('cortiva://app/app/index.html')
   return win
 }
 
@@ -172,7 +172,8 @@ app.whenReady().then(() => {
     let file = path.normalize(path.join(DIST, pathname))
     // Never serve anything outside dist/ (also blocks look-alikes such as "dist-old").
     if (file !== DIST && !file.startsWith(DIST + path.sep)) return new Response('Not found', { status: 404 })
-    if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, 'index.html')
+    // The desktop app is the app page (the site root is the web presentation page).
+    if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, 'app', 'index.html')
     const res = await net.fetch(pathToFileURL(file).toString())
     const headers = new Headers(res.headers)
     headers.set('Content-Security-Policy', CSP)

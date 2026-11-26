@@ -2,6 +2,17 @@
 
 Every version is its own release on GitHub. Each version's section below is what its release notes say.
 
+## 0.12.0-beta — 26 Nov 2026
+
+### New: a presentation page
+- **eric-2812.github.io/cortiva** now opens a page that explains Cortiva: what a take gives you, the cameras it works with, keyboard control and privacy, with **Download for Windows** and **Open in the browser**.
+- Its animations show the app at work: a recording with its timecode and audio meters running, a take's files appearing one by one, the shutter and ISO changing from the keyboard, a phone asking to join. They pause when off screen, can be paused by hand, and stay still if your system asks for reduced motion.
+- No photographs and no outside requests: everything is drawn in the page.
+
+### Changed
+- **The web app moved to eric-2812.github.io/cortiva/app/.** Old links and QR codes (with `?join=`) still work: they go straight to the app.
+- The desktop app opens the app as before, and new phone QR codes point to the new address.
+
 ## 0.11.0-beta — 26 Nov 2026
 
 ### Choose where recordings go

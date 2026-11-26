@@ -121,7 +121,7 @@ npm run app      # run the desktop app (Electron)
 npm run dist:win # build the Windows .exe files into release/ (on Windows)
 ```
 
-Each release also publishes the website to GitHub Pages (`gh-pages`); `.github/workflows/pages.yml` re-publishes it by hand. Phones need https for the camera, so use the Pages URL for the Wi-Fi feature. To use your own PeerJS signalling server, open the app with `?signal=host:port`.
+Each release also publishes the website to GitHub Pages (`gh-pages`): the presentation page at the root (`index.html`, `src/landing/`) and the app under `app/` (`app/index.html`, `src/`); `.github/workflows/pages.yml` re-publishes it by hand. Phones need https for the camera, so use the Pages URL for the Wi-Fi feature. To use your own PeerJS signalling server, open the app with `?signal=host:port`.
 
 Best in Chrome or Edge, which add folder recording, Web Bluetooth and the most camera controls.
 

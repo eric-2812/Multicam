@@ -35,6 +35,12 @@ export default defineConfig({
   // Relative paths so the build works on GitHub Pages or any subfolder.
   base: './',
   plugins: [react(), csp()],
+  // Two pages: the presentation page at the site root, the app itself under app/.
+  build: {
+    rollupOptions: {
+      input: { home: 'index.html', app: 'app/index.html' },
+    },
+  },
   // Shown in the status bar, so the web and the desktop app say which release they are.
   define: { __APP_VERSION__: JSON.stringify(version) },
 })
