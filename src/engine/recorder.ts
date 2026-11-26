@@ -117,6 +117,21 @@ class Recorder {
     return !!this.take
   }
 
+  private lastToggle = 0
+
+  /**
+   * The REC button and the R key. A second press within half a second is ignored, so a double
+   * tap doesn't leave a take of a few frames; a press while a take is still starting or saving
+   * says so instead of silently doing nothing.
+   */
+  toggle() {
+    const now = performance.now()
+    if (now - this.lastToggle < 500) return
+    this.lastToggle = now
+    if (this.busy) return toast(this.take ? 'Still saving the last take…' : 'Recording is starting…', 'info')
+    void (this.take ? this.stop() : this.start())
+  }
+
   /** Bytes written so far for a camera (null when it isn't recording). */
   bytes(sourceId: string) {
     const t = this.tracks.find((x) => x.sourceId === sourceId)

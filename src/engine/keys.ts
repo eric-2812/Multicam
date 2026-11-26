@@ -83,7 +83,7 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
 const manualNote = (src: VideoSource) => (src.settings.autoExposure ? ' (manual exposure)' : '')
 
 function shutter(dir: 1 | -1) {
-  onCam('shutter', (s) => !!s.hw?.shutter, (src) => {
+  onCam('shutter', (s) => !!s.hw?.shutter && shutterStops(s.hw.shutter).length > 0, (src) => {
     const note = manualNote(src)
     const v = stepStop(shutterStops(src.hw!.shutter!), src.settings.shutter, dir)
     set(src, { shutter: v, autoExposure: false })
@@ -175,7 +175,7 @@ function selectStep(dir: 1 | -1) {
 // ------------------------------------------------------------ every action
 
 export const ACTIONS: KeyAction[] = [
-  { id: 'record', label: 'Start / stop recording', group: 'switch', def: 'R', run: () => void (recorder.active ? recorder.stop() : recorder.start()) },
+  { id: 'record', label: 'Start / stop recording', group: 'switch', def: 'R', run: () => recorder.toggle() },
   { id: 'marker', label: 'Marker', group: 'switch', def: 'M', run: () => recorder.marker() },
   { id: 'slate', label: 'Slate (flash + beep everywhere)', group: 'switch', def: 'S', run: () => recorder.slate() },
   { id: 'cut', label: 'Cut', group: 'switch', def: 'Space', run: () => video.cut() },

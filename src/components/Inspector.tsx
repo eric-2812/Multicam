@@ -312,7 +312,9 @@ function LensSection({ src }: { src: VideoSource }) {
   const s = src.settings
   const hw = src.hw ?? {}
   const shown = s.focus
-  const ap = hw.aperture ? apertureStops(hw.aperture) : null
+  // A camera can report a range with none of the marked stops in it: then there's no ring to show.
+  const apStops = hw.aperture ? apertureStops(hw.aperture) : []
+  const ap = apStops.length ? apStops : null
   const [storing, setStoring] = useState(false)
   useEffect(() => setStoring(false), [src.id])
   const zoomKind = hw.zoom ? 'camera' : 'digital'
@@ -375,7 +377,8 @@ function ExposureSection({ src }: { src: VideoSource }) {
   const s = src.settings
   const hw = src.hw ?? {}
   const fps = useStore((st) => st.fps)
-  const sh = hw.shutter ? shutterStops(hw.shutter) : null
+  const shStops = hw.shutter ? shutterStops(hw.shutter) : []
+  const sh = shStops.length ? shStops : null
   const isoStops = hw.iso ? ISO_STOPS.filter((x) => x.v >= hw.iso![0] && x.v <= hw.iso![1]) : null
   const angle = shutterAngle(s.shutter, hw.fps ?? fps)
   const manualAvailable = !!(sh || isoStops)

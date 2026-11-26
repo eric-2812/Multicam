@@ -2,6 +2,19 @@
 
 Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
 
+## 0.7.0-beta — 26 nov 2026
+
+### Arreglos
+- **REC pulsado varias veces seguidas.** Si pulsabas REC (o la tecla R) dos o tres veces muy rápido, se creaba una toma de casi cero segundos y el botón quedaba al revés: parecía grabar cuando no grababa. Ahora una segunda pulsación en menos de medio segundo se ignora.
+- **REC mientras se guarda la toma anterior.** Antes no hacía nada y no decía por qué. Ahora avisa de que la toma anterior aún se está guardando (o de que la grabación está arrancando).
+- **Cámaras con un rango de obturador o de iris raro.** Si la cámara decía tener obturador o iris, pero en un rango que no incluía ninguna de las velocidades o números f de la lista, el panel de ajustes podía dejar de funcionar. Ahora ese control simplemente no aparece, y su tecla avisa de que la cámara no lo tiene.
+
+### Revisado y sin fallos
+- Grabar varias tomas con varias cámaras y micrófonos (7 archivos por toma), marcadores, claqueta, cortes, transiciones, fundido a negro y títulos.
+- No se puede quitar una cámara mientras se graba.
+- Cambio de resolución, quitar cámaras, móviles por Wi-Fi (con datos malformados incluidos), atajos de teclado, reconexión de cámaras, iPad y la pestaña Canon · Nikon · Fuji · Lumix.
+- Todas las páginas en móvil, tablet y ordenador, sin que nada se salga de la pantalla ni aparezcan errores.
+
 ## 0.6.0-beta — 25 nov 2026
 
 ### Nuevo: Canon, Nikon, Fujifilm y Lumix

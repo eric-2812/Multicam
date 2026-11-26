@@ -50,14 +50,14 @@ function RecButton() {
   useTick(500)
   const blocked = useStore((s) => (s.recordingSince ? null : whyCantRecord(s)))
   const toggle = () => {
-    if (since) return void recorder.stop()
+    if (since) return recorder.toggle()
     // Explain why, and take the operator to where cameras are connected.
     if (blocked) {
       toast(`${blocked}.`, 'bad')
       if (!store.get().sources.length) store.set({ page: 'setup', setupSection: 'devices', addTab: 'usb' })
       return
     }
-    void recorder.start()
+    recorder.toggle()
   }
   return (
     <button
