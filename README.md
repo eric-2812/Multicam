@@ -107,7 +107,7 @@ Camera keys work on the selected camera, only for controls its hardware has, and
 
 ## Download (Windows)
 
-Get the latest beta from the [Releases page](https://github.com/eric-2812/cortiva/releases): the installer (`Cortiva-Setup-<version>.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Cortiva**. From 0.10 the installed app updates itself (it downloads new releases in the background and installs them when it closes, or at once with *Restart to update*); the portable `.exe` tells you when a new one is out. See the [code signing policy](#code-signing-policy).
+Get the latest beta from the [Releases page](https://github.com/eric-2812/cortiva/releases): the installer (`Cortiva-Setup-<version>.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Cortiva**. From 0.10 the installed app updates itself (it downloads new releases in the background and installs them when it closes, or at once with *Restart to update*); the portable `.exe` tells you when a new one is out.
 
 Every change ships as a new release (and the website is updated with it): bump `version` in `package.json` (`0.2.0-beta`, `0.3.0-beta`…), describe the change in a new section at the top of [`CHANGELOG.md`](CHANGELOG.md), push, then run **Release (Windows)** from the Actions tab. It builds the Windows app, publishes a new release named after the version with that changelog section as its notes, and refuses to overwrite a version that was already released.
 
@@ -124,17 +124,6 @@ npm run dist:win # build the Windows .exe files into release/ (on Windows)
 Each release also publishes the website to GitHub Pages (`gh-pages`); `.github/workflows/pages.yml` re-publishes it by hand. Phones need https for the camera, so use the Pages URL for the Wi-Fi feature. To use your own PeerJS signalling server, open the app with `?signal=host:port`.
 
 Best in Chrome or Edge, which add folder recording, Web Bluetooth and the most camera controls.
-
-## Code signing policy
-
-Windows releases are built from this repository's source by GitHub Actions ([`release.yml`](.github/workflows/release.yml)) — never on a personal computer — and published to the [Releases page](https://github.com/eric-2812/cortiva/releases) together with the website, from the same commit.
-
-The Windows `.exe` files are **not code-signed yet**, so Windows SmartScreen may warn the first time you run one (**More info → Run anyway**). Each release lists the files it contains, and the desktop app checks every update it downloads against the SHA-512 published with that release.
-
-Team roles:
-
-- Committers and reviewers: [eric-2812](https://github.com/eric-2812)
-- Approvers (every release is started by hand): [eric-2812](https://github.com/eric-2812)
 
 ## Privacy
 

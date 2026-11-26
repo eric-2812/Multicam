@@ -32,7 +32,7 @@ const notes = `${changes}
 
 Windows SmartScreen may say "Windows protected your PC" because the app isn't code-signed yet: click **More info → Run anyway**.
 
-[Code signing policy](https://github.com/eric-2812/cortiva#code-signing-policy) · [Privacy](https://github.com/eric-2812/cortiva#privacy) · License: GPL v3
+[Privacy](https://github.com/eric-2812/cortiva#privacy) · License: GPL v3
 `
 writeFileSync('release-notes.md', notes)
 const out = `tag=${tag}\nname=${name}\n`

@@ -33,7 +33,7 @@ Changes that don't touch the app (docs, CI only) don't need a release.
 - The web version (https://eric-2812.github.io/cortiva/) is published by each release, not by
   pushes; `pages.yml` only re-publishes by hand. Phones join through it. The repository was
   renamed from Multicam to cortiva.
-- Licence: GPL-3.0-or-later (`LICENSE`). Keep the README's "Code signing policy" (how releases are
-  built; the .exe files aren't signed yet) and "Privacy" sections true. Free signing through the
-  SignPath Foundation was considered; the owner hasn't decided, so don't mention it in the project. If the app ever contacts a
+- Licence: GPL-3.0-or-later (`LICENSE`). Keep the README's "Privacy" section true. The owner asked to
+  leave code signing (and any SignPath / code-review policy) out of the project for now; the .exe
+  files aren't signed. If the app ever contacts a
   new outside service, add it to "Privacy" (the app makes no requests on start-up; fonts are bundled).
