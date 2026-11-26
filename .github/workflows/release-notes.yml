@@ -1,0 +1,35 @@
+name: Refresh release notes
+
+# Rewrites the notes of every published release from its CHANGELOG.md section (for example after
+# the changelog was translated). Files, tags and dates stay as they are. Run it by hand from the
+# Actions tab.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Rewrite each release's notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          for tag in $(gh release list --repo "$REPO" --limit 200 --json tagName --jq '.[].tagName'); do
+            version="${tag#v}"
+            if node scripts/release-info.mjs "$version" > /dev/null; then
+              gh release edit "$tag" --repo "$REPO" --notes-file release-notes.md
+              echo "Updated $tag"
+            else
+              echo "::warning::No CHANGELOG.md section for $tag, left as it was"
+            fi
+          done

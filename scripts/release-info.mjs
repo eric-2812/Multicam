@@ -6,7 +6,8 @@
 import { readFileSync, writeFileSync, appendFileSync } from 'node:fs'
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-const version = pkg.version
+// `node scripts/release-info.mjs 0.3.0-beta` writes the notes of an older version (to refresh its release).
+const version = process.argv[2] || pkg.version
 const m = /^(\d+)\.(\d+)\.(\d+)(?:-([a-z]+))?$/.exec(version)
 if (!m) throw new Error(`package.json version "${version}" is not like 0.2.0-beta`)
 const [, major, minor, patch, pre] = m
@@ -25,13 +26,13 @@ if (!changes) throw new Error(`The CHANGELOG.md section for ${version} is empty`
 
 const notes = `${changes}
 
-### Descarga
-- \`${pkg.productName}-Setup-${version}.exe\` — instalador (acceso en el menú Inicio, se desinstala desde Configuración).
-- \`${pkg.productName}-${version}-portable.exe\` — un solo archivo, sin instalar nada.
+### Download
+- \`${pkg.productName}-Setup-${version}.exe\` — installer (Start menu shortcut, uninstall from Settings).
+- \`${pkg.productName}-${version}-portable.exe\` — a single file, nothing to install.
 
-Windows SmartScreen puede decir "Windows protegió su PC" porque la app aún no está firmada: pulsa **Más información → Ejecutar de todas formas**.
+Windows SmartScreen may say "Windows protected your PC" because the app isn't code-signed yet: click **More info → Run anyway**.
 
-[Code signing policy](https://github.com/eric-2812/cortiva#code-signing-policy) · [Privacy](https://github.com/eric-2812/cortiva#privacy) · Licencia: GPL v3
+[Code signing policy](https://github.com/eric-2812/cortiva#code-signing-policy) · [Privacy](https://github.com/eric-2812/cortiva#privacy) · License: GPL v3
 `
 writeFileSync('release-notes.md', notes)
 const out = `tag=${tag}\nname=${name}\n`

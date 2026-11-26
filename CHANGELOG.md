@@ -1,173 +1,173 @@
-# Cambios
+# Changelog
 
-Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
+Every version is its own release on GitHub. Each version's section below is what its release notes say.
 
-## 0.11.0-beta — 26 nov 2026
+## 0.11.0-beta — 26 Nov 2026
 
-### Elegir dónde se guarda
-- **Arriba, junto al número de toma, ahora se ve siempre dónde se guardan las grabaciones** (por ejemplo "Downloads" o el nombre de tu carpeta). Un clic abre el selector para elegir otra carpeta, y cada toma se guarda en su propia subcarpeta dentro.
-- Se recuerda la próxima vez que abras Cortiva (el navegador vuelve a pedir permiso en la primera toma).
-- En la app de escritorio, sin carpeta elegida, se indica que las grabaciones van a **Vídeos\Cortiva**.
-- Elegir carpeta necesita Chrome, Edge o la app de escritorio. En otros navegadores las grabaciones se descargan.
+### Choose where recordings go
+- **The header now always shows where recordings are saved**, next to the take number (for example "Downloads" or your folder's name). One click opens the picker to choose another folder; each take goes into its own subfolder inside it.
+- It's remembered the next time you open Cortiva (the browser asks for permission again at the first take).
+- In the desktop app, with no folder chosen, it says that recordings go to **Videos\Cortiva**.
+- Choosing a folder needs Chrome, Edge or the desktop app. Other browsers download the files instead.
 
-### Los archivos 4K de las tarjetas, dentro de la toma
-- En **Takes**, cada toma tiene **"Add files from camera cards (4K)"**. Eliges los archivos que las cámaras grabaron en su tarjeta (GoPro, Sony, Canon, el móvil…) y para cada uno dices de qué cámara es.
-- Se copian a la carpeta de la toma con el mismo estilo de nombre (por ejemplo `Boda_T003_C2_Sony_CARD.mp4`), para que el editor los vea junto al resto. Si no hay carpeta elegida, se guardan como descarga.
-- También se crea `…_cards.json` con el nombre original, la duración y la hora de la cámara de cada archivo. Para alinearlos, usa la claqueta o la forma de onda del audio.
-- Las tomas se recuerdan al cerrar Cortiva, así que puedes añadir los archivos de las tarjetas más tarde.
+### The 4K files from camera cards, inside the take
+- In **Takes**, every take has **"Add files from camera cards (4K)"**. Pick the files the cameras recorded on their own cards (GoPro, Sony, Canon, the phone…) and say which camera each one came from.
+- They're copied into the take's folder with the same naming as the other files (for example `Wedding_T003_C2_Sony_CARD.mp4`), so your editor sees them together. With no folder chosen, they're saved as downloads.
+- A `…_cards.json` file lists each one's original name, duration and camera clock time. Line them up with the slate or by audio waveform.
+- Takes are remembered when you close Cortiva, so you can add the card files later.
 
-### Más calidad en 4K
-- Cada cámara se graba con una calidad acorde a su resolución: una cámara 4K recibe cuatro veces más datos que una 1080p, así que su archivo conserva el detalle. El cálculo de espacio por hora de Setup → Recording lo tiene en cuenta.
+### Better 4K quality
+- Each camera records at a quality that matches its resolution: a 4K camera gets four times the data of a 1080p one, so its file keeps the detail. The storage-per-hour estimate in Setup → Recording takes it into account.
 
-## 0.10.0-beta — 26 nov 2026
+## 0.10.0-beta — 26 Nov 2026
 
-### Nuevo: la app se actualiza sola
-- La app instalada busca versiones nuevas al abrirse y cada 4 horas, y las descarga en segundo plano. Cuando están listas aparece un aviso: **"Cortiva x is ready"**, con **Restart to update** y un enlace a **What's new**. Si no reinicias, se instala sola al cerrar Cortiva.
-- No deja reiniciar mientras grabas.
-- La versión portable no puede actualizarse sola: avisa de que hay una versión nueva y te lleva a descargarla.
-- **Esta versión hay que instalarla a mano una vez.** Las anteriores no tenían el actualizador; a partir de la 0.10, las siguientes llegan solas.
+### New: the app updates itself
+- The installed app checks for new versions when it opens and every 4 hours, and downloads them in the background. When one is ready you'll see **"Cortiva x is ready"**, with **Restart to update** and a **What's new** link. If you don't restart, it installs when you close Cortiva.
+- It won't restart while you're recording.
+- The portable version can't update itself: it tells you a new version is out and links to the download.
+- **Install this version by hand once.** Earlier versions don't have the updater; from 0.10 on, new versions arrive by themselves.
 
-### Nuevo: recuerda tu configuración
-- Al abrir Cortiva aparece **"Pick up where you left off"**, con las cámaras y micrófonos de la última vez. **Restore last setup** los vuelve a conectar con sus nombres, números, ajustes (zoom, foco, exposición, color…), si estaban armados para grabar, y el volumen, procesado y "audio sigue a la cámara" de cada micrófono.
-- Se recuerdan siempre: el nombre del proyecto, el número de la siguiente toma (así los archivos no se repiten), los ajustes de grabación, los fotogramas por segundo, el título, la transición y la carpeta de grabación (el navegador vuelve a pedir permiso en la primera toma).
-- Las cámaras IP se recuerdan sin su contraseña. Los móviles, la pantalla compartida y las cámaras Bluetooth hay que volver a conectarlos, porque el navegador exige que lo hagas tú.
-- Si no pulsas Restore y empiezas de cero, lo guardado no se borra hasta que conectes algo nuevo.
-- Todo se guarda solo en este ordenador.
+### New: remembers your setup
+- When you open Cortiva, **"Pick up where you left off"** shows last time's cameras and microphones. **Restore last setup** reconnects them with their names, numbers, settings (zoom, focus, exposure, colour…), whether they were armed, and each mic's level, processing and audio-follows-video.
+- Always remembered: the project name, the next take number (so file names don't repeat), recording settings, frame rate, title, transition and recording folder (the browser asks for permission again at the first take).
+- IP cameras are remembered without their password. Phones, screen sharing and Bluetooth cameras have to be connected again, because the browser requires you to do it yourself.
+- If you start fresh instead of restoring, the saved setup isn't erased until you connect something new.
+- Everything is saved on this computer only.
 
-## 0.9.0-beta — 26 nov 2026
+## 0.9.0-beta — 26 Nov 2026
 
-### Cortiva es software libre
-- Cortiva tiene licencia **GPL v3**: cualquiera puede usarla, estudiarla y modificarla, y quien reparta una versión modificada tiene que publicar su código con la misma licencia. El instalador muestra la licencia, y en **Setup** hay un enlace a la licencia, al código y a la privacidad.
-- El README tiene ahora una **política de firma de código** y una **nota de privacidad**, que pide SignPath para firmar la app gratis.
+### Cortiva is free software
+- Cortiva is licensed under the **GPL v3**: anyone can use, study and change it, and anyone who distributes a modified version must publish its source under the same licence. The installer shows the licence, and **Setup** links to the licence, the source code and the privacy notes.
+- The README now has a **code signing policy** and **privacy notes**, which SignPath requires to sign the app for free.
 
-### Privacidad
-- **La app ya no se conecta a Google al arrancar.** Las tipografías (Inter e IBM Plex Mono) vienen dentro de la app en vez de descargarse de Google Fonts. Además, la app de escritorio se ve igual sin internet.
-- Cortiva solo se conecta a otros sitios cuando tú lo pides: al unir un móvil por Wi-Fi, al añadir una cámara IP o al emparejar una cámara por Bluetooth.
+### Privacy
+- **The app no longer connects to Google when it starts.** The fonts (Inter and IBM Plex Mono) ship inside the app instead of loading from Google Fonts, and the desktop app looks the same offline.
+- Cortiva only connects elsewhere when you ask it to: joining a phone over Wi-Fi, adding an IP camera or pairing a Bluetooth camera.
 
-## 0.8.0-beta — 26 nov 2026
+## 0.8.0-beta — 26 Nov 2026
 
-### Nuevo: aprobar cada móvil
-- **Ningún móvil entra sin tu permiso.** Cuando un móvil pide unirse por Wi-Fi, aparece arriba a la derecha un aviso: **"Phone X wants to join"**, con **Allow** y **Deny**. Hasta que pulsas Allow no se añade ni su cámara ni su micrófono, aunque tenga el enlace o el QR.
-- Mientras espera, el móvil muestra "Waiting for the computer to allow this phone". Si lo rechazas, el móvil lo dice y deja de intentarlo.
-- Un móvil que ya permitiste se reconecta solo si se corta el Wi-Fi, sin volver a preguntar (mientras no recargue la página).
-- Si nadie responde en 90 segundos, se rechaza solo. Como mucho se muestran 4 peticiones a la vez, para que nadie pueda llenar la pantalla de avisos.
+### New: approve every phone
+- **No phone gets in without your permission.** When a phone asks to join over Wi-Fi, a notice appears at the top right: **"Phone X wants to join"**, with **Allow** and **Deny**. Its camera and mic aren't added until you press Allow, even if it has the link or the QR code.
+- While it waits, the phone shows "Waiting for the computer to allow this phone". If you deny it, the phone says so and stops trying.
+- A phone you've allowed reconnects by itself if the Wi-Fi drops, without asking again (as long as it doesn't reload the page).
+- With no answer in 90 seconds it's turned away. At most 4 requests show at once, so nobody can flood the screen.
 
-## 0.7.0-beta — 26 nov 2026
+## 0.7.0-beta — 26 Nov 2026
 
-### Arreglos
-- **REC pulsado varias veces seguidas.** Si pulsabas REC (o la tecla R) dos o tres veces muy rápido, se creaba una toma de casi cero segundos y el botón quedaba al revés: parecía grabar cuando no grababa. Ahora una segunda pulsación en menos de medio segundo se ignora.
-- **REC mientras se guarda la toma anterior.** Antes no hacía nada y no decía por qué. Ahora avisa de que la toma anterior aún se está guardando (o de que la grabación está arrancando).
-- **Cámaras con un rango de obturador o de iris raro.** Si la cámara decía tener obturador o iris, pero en un rango que no incluía ninguna de las velocidades o números f de la lista, el panel de ajustes podía dejar de funcionar. Ahora ese control simplemente no aparece, y su tecla avisa de que la cámara no lo tiene.
+### Fixes
+- **REC pressed several times in a row.** Pressing REC (or R) two or three times quickly made a take of almost zero seconds and left the button the wrong way round: it looked like it was recording when it wasn't. A second press within half a second is now ignored.
+- **REC while the previous take is still saving.** It used to do nothing without saying why. It now says the previous take is still being saved (or that recording is starting).
+- **Cameras with an unusual shutter or iris range.** If a camera reported a shutter or iris range that included none of the listed speeds or f-numbers, the settings panel could stop working. That control is now simply hidden, and its shortcut says the camera doesn't have it.
 
-### Revisado y sin fallos
-- Grabar varias tomas con varias cámaras y micrófonos (7 archivos por toma), marcadores, claqueta, cortes, transiciones, fundido a negro y títulos.
-- No se puede quitar una cámara mientras se graba.
-- Cambio de resolución, quitar cámaras, móviles por Wi-Fi (con datos malformados incluidos), atajos de teclado, reconexión de cámaras, iPad y la pestaña Canon · Nikon · Fuji · Lumix.
-- Todas las páginas en móvil, tablet y ordenador, sin que nada se salga de la pantalla ni aparezcan errores.
+### Checked, no problems found
+- Several takes with several cameras and mics (7 files per take), markers, slate, cuts, transitions, fade to black and titles.
+- A camera can't be removed while recording.
+- Changing resolution, removing cameras, phones over Wi-Fi (malformed data included), keyboard shortcuts, camera reconnection, iPad and the Canon · Nikon · Fuji · Lumix tab.
+- Every page on phone, tablet and computer, with nothing spilling off the screen and no errors.
 
-## 0.6.0-beta — 25 nov 2026
+## 0.6.0-beta — 25 Nov 2026
 
-### Nuevo: Canon, Nikon, Fujifilm y Lumix
-- Nueva pestaña **Canon · Nikon · Fuji · Lumix** (también en la pantalla de inicio). Eliges la marca y te dice paso a paso cómo conectar tu cámara:
-  - **Canon:** los modelos EOS recientes (R8, R5 Mark II…) funcionan como webcam por USB sin programas. Los demás, con **EOS Webcam Utility**.
-  - **Nikon:** Z6III (firmware 2.0 o posterior), Z f y Z50II con **USB streaming (UVC/UAC)** desde el menú de red. Los demás, con **Nikon Webcam Utility**.
-  - **Fujifilm:** los modelos nuevos con el modo de conexión **USB WEBCAM**. Los anteriores (X-T4, X-S10, X-Pro3, X100V…), con **FUJIFILM X Webcam**.
-  - **Lumix:** los modelos nuevos con el modo USB **PC (Webcam)**. Los anteriores (S1, S5, GH5, G9…), con **LUMIX Webcam Software**.
-  - Para todas: HDMI limpio a una capturadora para la mejor calidad y el menor retraso.
-- Cortiva **reconoce estas cámaras por su nombre** al conectarlas y las añade con un clic, con su micrófono si lo tienen.
-- La latencia estimada tiene en cuenta cómo está conectada la cámara: por el programa del fabricante, por el modo USB de la cámara o por HDMI. En cuanto el navegador puede medirla, se usa la medida real.
-- Consejos para sesiones largas: alimentación por corriente, apagado automático desactivado y pantalla HDMI limpia.
-- La pantalla de inicio también ofrece **Compartir pantalla o ventana**.
+### New: Canon, Nikon, Fujifilm and Lumix
+- New **Canon · Nikon · Fuji · Lumix** tab (also on the welcome screen). Pick the brand and it shows step by step how to connect your camera:
+  - **Canon:** recent EOS models (R8, R5 Mark II…) work as a USB webcam with no software. Others use **EOS Webcam Utility**.
+  - **Nikon:** Z6III (firmware 2.0 or later), Z f and Z50II use **USB streaming (UVC/UAC)** from the network menu. Others use **Nikon Webcam Utility**.
+  - **Fujifilm:** newer models use the **USB WEBCAM** connection mode. Older ones (X-T4, X-S10, X-Pro3, X100V…) use **FUJIFILM X Webcam**.
+  - **Lumix:** newer models use the **PC (Webcam)** USB mode. Older ones (S1, S5, GH5, G9…) use **LUMIX Webcam Software**.
+  - For all of them: clean HDMI into a capture card for the best quality and lowest delay.
+- Cortiva **recognises these cameras by name** when they're connected and adds them in one click, with their microphone if they have one.
+- The latency estimate accounts for how the camera is connected: the maker's app, the camera's own USB mode or HDMI. As soon as the browser can measure it, the measured value is used.
+- Tips for long shoots: mains power, auto power-off disabled and a clean HDMI output.
+- The welcome screen also offers **Share a screen or window**.
 
-### Límites conocidos
-- En modo webcam por USB casi ninguna cámara deja cambiar foco, ISO u obturador desde el ordenador. Si la cámara los ofrece, aparecen en el panel; si no, se ajustan en la cámara.
-- Aún sin probar con cámaras Canon, Nikon, Fujifilm o Lumix reales.
+### Known limits
+- In USB webcam mode almost no camera lets the computer change focus, ISO or shutter. If the camera offers them, they show in the panel; otherwise set them on the camera.
+- Not yet tested with real Canon, Nikon, Fujifilm or Lumix cameras.
 
-## 0.5.0-beta — 25 nov 2026
+## 0.5.0-beta — 25 Nov 2026
 
-### iPad y iPhone
-- **La cámara del iPad ya no "se pierde" sin explicación.** iPad y iPhone solo pueden usar una de sus cámaras a la vez en el navegador: al añadir otra, la primera se para. Ahora Cortiva te avisa antes, explica por qué se paró y tiene un botón **Switch back** para volver a ella.
-- Arreglado un fallo de la 0.4 en iPad: dos cámaras del mismo iPad podían quitarse la señal la una a la otra sin parar.
-- La imagen de las cámaras se mantiene dentro de la página para que Safari no la pause.
-- Para más ángulos con un iPad, une otros móviles por Wi-Fi (pestaña iPhone o Android / Wi-Fi).
+### iPad and iPhone
+- **The iPad's camera no longer "gets lost" without explanation.** iPad and iPhone can use only one of their cameras at a time in the browser: adding another stops the first. Cortiva now warns you first, explains why it stopped and has a **Switch back** button.
+- Fixed a 0.4 bug on iPad: two cameras of the same iPad could keep taking the signal from each other.
+- Camera pictures are kept inside the page so Safari doesn't pause them.
+- For more angles with an iPad, join other phones over Wi-Fi (iPhone or Android / Wi-Fi tab).
 
-### Web
-- **La web ahora se actualiza con cada release**, con exactamente la misma versión que los `.exe`. Antes se actualizaba con cada cambio, aunque no hubiera release.
-- La barra de estado de abajo muestra la versión (por ejemplo **v0.5.0-beta**), en la web y en la app.
+### Website
+- **The website is now updated with every release**, with exactly the same version as the `.exe` files. It used to change with every commit, even without a release.
+- The status bar shows the version (for example **v0.5.0-beta**), on the web and in the app.
 
-## 0.4.0-beta — 25 nov 2026
+## 0.4.0-beta — 25 Nov 2026
 
-### Arreglos
-- **Una cámara USB que pierde la señal ahora se reconecta sola.** Antes ponía "esperando a que vuelva", pero nunca lo intentaba. Ahora reintenta enseguida y luego cada pocos segundos, y en cuanto vuelve recupera sus ajustes (foco, obturador, balance…).
-- Si la cámara está ocupada por otra aplicación (otra pestaña, la app de Cortiva, Teams, la app Cámara…), te lo dice. En Windows, la mayoría de cámaras solo las puede usar una aplicación a la vez.
-- En el panel de la cámara hay un botón **Try now** para reintentar a mano.
-- El QR para unir móviles desde la app de escritorio apunta a la nueva dirección de la web (**eric-2812.github.io/cortiva**), tras el cambio de nombre del repositorio.
+### Fixes
+- **A USB camera that loses its signal now reconnects by itself.** It used to say "waiting for the device to come back" but never tried. It now retries at once and then every few seconds, and when it's back it gets its settings again (focus, shutter, white balance…).
+- If the camera is busy in another app (another tab, the Cortiva app, Teams, the Camera app…), it tells you. On Windows most cameras can be used by only one app at a time.
+- The camera panel has a **Try now** button to retry by hand.
+- The QR code for joining phones from the desktop app points at the website's new address (**eric-2812.github.io/cortiva**) after the repository was renamed.
 
-### Límites conocidos
-- Si la cámara se pierde mientras grabas, su archivo de esa toma termina en ese momento; la siguiente toma ya graba con normalidad.
+### Known limits
+- If a camera drops out during a take, its file for that take ends there; the next take records normally.
 
-## 0.3.0-beta — 25 nov 2026
+## 0.3.0-beta — 25 Nov 2026
 
-### Nuevo: atajos de teclado configurables
-- En **Setup → Shortcuts** puedes cambiar la tecla de cada acción: haz clic en la tecla, pulsa la nueva y listo. **Esc** cancela, **Retroceso** la quita, y **Reset to defaults** vuelve a las de fábrica. Se guardan en el ordenador.
-- Nuevas teclas para ajustar la cámara seleccionada (la que está abierta en el panel de ajustes):
-  - **C** / **Mayús + C**: obturador más rápido / más lento, de paso en paso (1/50 → 1/60 → 1/100…).
-  - **I** / **Mayús + I**: ISO arriba / abajo.
-  - **E** / **Mayús + E**: exposición ± ⅓ de paso.
-  - **A** / **Mayús + A**: iris (número f más alto / más bajo).
-  - **N** / **Mayús + N**: filtro ND.
-  - **D** / **Mayús + D**: foco más lejos / más cerca.
-  - **Z** / **Mayús + Z**: zoom.
-  - **W** / **Mayús + W**: balance de blancos ± 100 K.
-  - **.** y **,**: cámara siguiente / anterior.
-  - Sin tecla por defecto, para asignar a tu gusto: auto exposición, autofoco, balance automático, panorámica / inclinación y linterna.
-- Si mantienes pulsada una tecla, el ajuste sigue cambiando.
-- Al pulsar una tecla aparece arriba el valor nuevo, por ejemplo **"Cam 1 — Shutter 1/100 · 180°"**.
-- Igual que en el panel, solo funcionan los ajustes que tiene la cámara. Si no lo tiene, el aviso lo dice ("Cam 2 has no shutter control").
-- Al cambiar obturador o ISO desde el teclado, la cámara pasa a exposición manual. Lo mismo pasa con el foco (a enfoque manual) y con el balance de blancos (a manual).
-- Las teclas de siempre (R, M, S, Espacio, Intro…) también se pueden cambiar. **1–9** y **Mayús + 1–9** siguen fijas para elegir cámara y pincharla.
+### New: configurable keyboard shortcuts
+- In **Setup → Shortcuts** you can change the key for every action: click the key, press the new one, done. **Esc** cancels, **Backspace** removes it, and **Reset to defaults** brings back the original keys. They're saved on the computer.
+- New keys for the selected camera (the one open in the settings panel):
+  - **C** / **Shift + C**: shutter faster / slower, one stop at a time (1/50 → 1/60 → 1/100…).
+  - **I** / **Shift + I**: ISO up / down.
+  - **E** / **Shift + E**: exposure ± ⅓ stop.
+  - **A** / **Shift + A**: iris (higher / lower f-number).
+  - **N** / **Shift + N**: ND filter.
+  - **D** / **Shift + D**: focus farther / nearer.
+  - **Z** / **Shift + Z**: zoom.
+  - **W** / **Shift + W**: white balance ± 100 K.
+  - **.** and **,**: next / previous camera.
+  - No default key, assign them as you like: auto exposure, autofocus, auto white balance, pan / tilt and torch.
+- Holding a key keeps the setting changing.
+- Each key press shows the new value at the top, for example **"Cam 1 — Shutter 1/100 · 180°"**.
+- As in the panel, only the camera's own controls work. If it doesn't have one, the notice says so ("Cam 2 has no shutter control").
+- Changing shutter or ISO from the keyboard switches the camera to manual exposure. Focus switches to manual focus, and white balance to manual white balance.
+- The usual keys (R, M, S, Space, Enter…) can be changed too. **1–9** and **Shift + 1–9** stay fixed for selecting and cutting cameras.
 
-## 0.2.0-beta — 24 nov 2026
+## 0.2.0-beta — 24 Nov 2026
 
-Versión de seguridad, tras una auditoría de toda la app.
+A security release, after an audit of the whole app.
 
-### Seguridad
-- **Electron 45** (antes 33, que ya no recibía parches de seguridad de Chromium).
-- La app de escritorio solo muestra sus propias páginas: no navega a webs externas ni abre ventanas nuevas, y los enlaces externos (solo `https`) se abren en tu navegador.
-- Cámara, micrófono, Bluetooth, carpetas y pantalla solo se conceden a la propia app. Ya no se da acceso a dispositivos USB, serie o HID.
-- El ejecutable viene protegido: no se puede usar como intérprete de Node, ni inyectarle código con variables de entorno o depuradores, y comprueba que sus archivos no se han modificado.
-- Política de seguridad de contenido (CSP) en la app y en la web: solo se ejecuta el código de Cortiva.
-- Emparejar una cámara por Bluetooth siempre pide confirmación.
-- Los archivos descargados siempre se guardan dentro de **Vídeos\Cortiva**, con nombres limpios.
+### Security
+- **Electron 45** (was 33, which no longer received Chromium security fixes).
+- The desktop app only shows its own pages: it doesn't navigate to outside websites or open new windows, and external links (`https` only) open in your browser.
+- Camera, microphone, Bluetooth, folders and screen access are granted only to the app itself. USB, serial and HID devices are no longer accessible.
+- The executable is hardened: it can't be used as a Node interpreter or have code injected through environment variables or debuggers, and it checks that its files haven't been modified.
+- A Content Security Policy in the app and on the web: only Cortiva's own code runs.
+- Pairing a Bluetooth camera always asks for confirmation.
+- Downloaded files always go inside **Videos\Cortiva**, with clean names.
 
-### Móviles por Wi-Fi
-- El código de la sala es más largo (10 caracteres) y se genera con el generador aleatorio seguro del sistema, así que no se puede adivinar.
-- Todo lo que envía un móvil se comprueba antes de usarlo: nombres sin caracteres raros, ajustes de cámara válidos. Un móvil con datos malformados ya no puede bloquear la sala de control.
-- Máximo de 16 móviles conectados a la vez.
+### Phones over Wi-Fi
+- The room code is longer (10 characters) and comes from the system's secure random generator, so it can't be guessed.
+- Everything a phone sends is checked before use: names without odd characters, valid camera settings. A phone sending malformed data can no longer break the control room.
+- At most 16 phones connected at once.
 
-### Grabaciones
-- Si una cámara IP lleva contraseña en su dirección, ya no se muestra en pantalla ni se guarda en la hoja de toma.
-- El CSV de marcadores ya no deja que una hoja de cálculo interprete un nombre como fórmula, y el EDL no se rompe con nombres raros.
+### Recordings
+- If an IP camera's address contains a password, it's no longer shown on screen or saved in the take sheet.
+- The markers CSV no longer lets a spreadsheet read a name as a formula, and the EDL doesn't break on odd names.
 
-### Proyecto
-- Los workflows de GitHub usan versiones fijas de cada acción, y Dependabot avisa cada semana de actualizaciones de seguridad.
+### Project
+- The GitHub workflows use pinned versions of each action, and Dependabot checks weekly for security updates.
 
-### Límites conocidos
-- El instalador sigue sin firma digital: Windows avisará de "editor desconocido" la primera vez.
+### Known limits
+- The installer still isn't code-signed: Windows will say "unknown publisher" the first time.
 
-## 0.1.0-beta — 24 nov 2026
+## 0.1.0-beta — 24 Nov 2026
 
-Primera beta de Cortiva para Windows.
+The first Cortiva beta for Windows.
 
-### Qué incluye
-- Graba cada cámara y cada micrófono en su propio archivo, todos empezando en el mismo fotograma, más el programa mezclado, un EDL, marcadores y una hoja de toma.
-- Webcams y capturadoras, iPhone (Continuity Camera o Wi-Fi), GoPro (modo webcam o HDMI), Sony Alpha (USB streaming o HDMI), cámaras IP y compartir pantalla.
-- GoPro (HERO9+) y Sony Alpha emparejadas por Bluetooth graban en su propia tarjeta al pulsar REC.
-- Ajustes de cámara que admita el hardware (foco, obturador, ISO, balance de blancos, PTZ y más) y, por micrófono, trim, EQ, compresor y puerta de ruido.
-- Código de tiempo maestro, alineación de lip-sync, claqueta, vista de foco con cebra / peaking / histograma y mezclador de vídeo en directo.
-- No deja grabar sin al menos una cámara; los micrófonos tienen su propia pestaña y aparecen en la pantalla de inicio.
-- Las grabaciones sin carpeta elegida se guardan en **Vídeos\Cortiva**.
+### What's in it
+- Records every camera and every microphone to its own file, all starting on the same frame, plus the switched program, an EDL, markers and a take sheet.
+- Webcams and capture cards, iPhone (Continuity Camera or Wi-Fi), GoPro (webcam mode or HDMI), Sony Alpha (USB streaming or HDMI), IP cameras and screen sharing.
+- GoPro (HERO9+) and Sony Alpha cameras paired over Bluetooth record to their own cards when you press REC.
+- The camera settings the hardware supports (focus, shutter, ISO, white balance, PTZ and more) and, per microphone, trim, EQ, compressor and noise gate.
+- Master timecode, lip-sync alignment, slate, focus view with zebra / peaking / histogram, and a live video switcher.
+- Recording needs at least one camera; microphones have their own tab and appear on the welcome screen.
+- Recordings with no folder chosen go to **Videos\Cortiva**.
 
-### Límites conocidos
-- Aún sin probar con una Sony a7 IV o una GoPro reales por Bluetooth.
-- Los móviles se unen a través de la versión web (el QR la abre), así que la web debe estar publicada en GitHub Pages.
+### Known limits
+- Not yet tested with a real Sony a7 IV or GoPro over Bluetooth.
+- Phones join through the web version (the QR code opens it), so the website must be published on GitHub Pages.

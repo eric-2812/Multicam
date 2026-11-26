@@ -10,8 +10,10 @@ publishing a **new** GitHub release — never re-publish or overwrite an existin
 1. Bump `version` in `package.json` to the next beta: `0.1.0-beta` → `0.2.0-beta` → `0.3.0-beta` …
    (a release is named from it: `0.2.0-beta` → "Cortiva beta 0.2"). Run `npm i --package-lock-only`
    so `package-lock.json` matches.
-2. Add a section at the top of `CHANGELOG.md`, headed `## <version> — <date>`, saying in Spanish,
+2. Add a section at the top of `CHANGELOG.md`, headed `## <version> — <date>`, saying **in English**,
    in plain words for the person using the app, what changed (new things, fixes, known limits).
+   All release texts (notes, names, descriptions) are in English; only the chat with the owner is in
+   Spanish.
    The release notes are taken from that section; the workflow refuses to release without it.
 3. Check the work (typecheck, build, and run it), commit and push to `main`.
 4. Start the **Release (Windows)** workflow (`.github/workflows/release.yml`) with a
