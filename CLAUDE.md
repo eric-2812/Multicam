@@ -32,8 +32,9 @@ Changes that don't touch the app (docs, CI only) don't need a release.
   `package.json`) into an NSIS installer and a portable `.exe`.
 - The web version is published by each release, not by pushes; `pages.yml` only re-publishes by
   hand. https://eric-2812.github.io/cortiva/ is the presentation page (`index.html`,
-  `src/landing/`: Motion, anime.js and NumberFlow animations, no photographs — the owner asked for
-  none); the app is at `/cortiva/app/` (`app/index.html`), which phones join through. A `?join=`
+  `src/landing/`: built on the design-taste-frontend kit copied into `public/kit/` (layout, hover,
+  hero entrance, the pinned-chapters moment), plus Motion, anime.js and NumberFlow animations; no
+  photographs — the owner asked for none; check it with the skill's `gate.mjs` on `dist/index.html`); the app is at `/cortiva/app/` (`app/index.html`), which phones join through. A `?join=`
   link to the root is forwarded to the app. The desktop app loads `cortiva://app/app/index.html`.
   The repository was renamed from Multicam to cortiva.
 - Licence: GPL-3.0-or-later (`LICENSE`). Keep the README's "Privacy" section true. The owner asked to

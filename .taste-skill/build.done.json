@@ -1,0 +1,11 @@
+{
+ "page": "dist/index.html",
+ "url": null,
+ "root": "dist",
+ "kind": "software",
+ "category": "multicam recording app",
+ "primary": "Download for Windows",
+ "rounds": 3,
+ "start": "2026-11-26T15:19:18.529Z",
+ "by": "gate.mjs --start"
+}

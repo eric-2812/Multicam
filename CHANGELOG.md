@@ -2,6 +2,14 @@
 
 Every version is its own release on GitHub. Each version's section below is what its release notes say.
 
+## 0.13.0-beta — 26 Nov 2026
+
+### The presentation page, redesigned
+- **eric-2812.github.io/cortiva** is rebuilt on a stricter layout: one idea per screen, the same left and right edges all the way down, and the buttons and links answering the pointer.
+- **"How multicam recording works"** now walks through a take in three steps as you scroll (press REC, a file per camera and mic, edit the multicam clip), with Cortiva's own screens beside each step.
+- The camera, keyboard and privacy pieces now stand on a lit panel, and every heading says what the section is about.
+- Still no photographs and no outside requests; the animations (Motion, anime.js and NumberFlow) still rest under reduced motion and can be paused.
+
 ## 0.12.0-beta — 26 Nov 2026
 
 ### New: a presentation page
