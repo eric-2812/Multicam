@@ -129,14 +129,12 @@ Best in Chrome or Edge, which add folder recording, Web Bluetooth and the most c
 
 Windows releases are built from this repository's source by GitHub Actions ([`release.yml`](.github/workflows/release.yml)) — never on a personal computer — and published to the [Releases page](https://github.com/eric-2812/cortiva/releases) together with the website, from the same commit.
 
-Signing is being set up with the SignPath Foundation's free programme for open-source projects. Once it is in place: free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+The Windows `.exe` files are **not code-signed yet**, so Windows SmartScreen may warn the first time you run one (**More info → Run anyway**). Each release lists the files it contains, and the desktop app checks every update it downloads against the SHA-512 published with that release.
 
 Team roles:
 
 - Committers and reviewers: [eric-2812](https://github.com/eric-2812)
-- Approvers (every signed release is approved by hand): [eric-2812](https://github.com/eric-2812)
-
-All team members use multi-factor authentication on GitHub and SignPath. Only the binaries built by the release workflow from this repository are signed — no third-party programs.
+- Approvers (every release is started by hand): [eric-2812](https://github.com/eric-2812)
 
 ## Privacy
 

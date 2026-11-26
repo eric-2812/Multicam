@@ -38,7 +38,7 @@ Every version is its own release on GitHub. Each version's section below is what
 
 ### Cortiva is free software
 - Cortiva is licensed under the **GPL v3**: anyone can use, study and change it, and anyone who distributes a modified version must publish its source under the same licence. The installer shows the licence, and **Setup** links to the licence, the source code and the privacy notes.
-- The README now has a **code signing policy** and **privacy notes**, which SignPath requires to sign the app for free.
+- The README now has a **code signing policy** (how the Windows files are built and published) and **privacy notes**.
 
 ### Privacy
 - **The app no longer connects to Google when it starts.** The fonts (Inter and IBM Plex Mono) ship inside the app instead of loading from Google Fonts, and the desktop app looks the same offline.
