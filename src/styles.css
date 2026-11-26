@@ -3418,3 +3418,59 @@ span.strip-name {
     display: none;
   }
 }
+
+/* welcome: bring back the last setup */
+.welcome-restore {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin: 0 0 28px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  background: var(--panel-2);
+}
+
+.welcome-restore b {
+  display: block;
+  color: var(--hi);
+  font-weight: 600;
+}
+
+.welcome-restore small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+/* desktop app: a new version is ready */
+.update-banner {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  z-index: 61;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  background: var(--panel-3);
+  box-shadow: inset 3px 0 0 var(--green), 0 12px 32px rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+  transform: translateX(-50%);
+}
+
+.update-banner > svg {
+  color: var(--green);
+}
+
+.update-banner b {
+  color: var(--hi);
+  font-weight: 600;
+}

@@ -31,6 +31,12 @@ export async function chooseFolder() {
   const pick = (window as unknown as { showDirectoryPicker(o: object): Promise<DirHandle> }).showDirectoryPicker
   folder = await pick({ mode: 'readwrite', id: 'cortiva-recordings' })
   store.set((s) => ({ rec: { ...s.rec, dest: 'folder', folderName: folder!.name } }))
+  return folder
+}
+
+/** The folder remembered from last time (the browser asks again for permission at the first REC). */
+export function setFolder(handle: unknown) {
+  folder = handle as DirHandle
 }
 
 interface Sink {

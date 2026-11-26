@@ -1,7 +1,7 @@
 // Cortiva desktop app (Electron). Serves the built web app from a private, secure origin and
 // fills in the browser bits a desktop app has to answer itself: permissions, the Bluetooth
 // device picker and pairing prompts, screen-share source picking and silent downloads.
-const { app, BrowserWindow, protocol, net, session, desktopCapturer, shell, dialog } = require('electron')
+const { app, BrowserWindow, protocol, net, session, desktopCapturer, shell, dialog, ipcMain } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
@@ -62,7 +62,14 @@ function createWindow() {
     title: 'Cortiva',
     autoHideMenuBar: true,
     icon: path.join(__dirname, 'icon.png'),
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, webviewTag: false },
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      webSecurity: true,
+      webviewTag: false,
+      preload: path.join(__dirname, 'preload.cjs'),
+    },
   })
 
   // The window only ever shows the app. Links go to the user's browser (below), never in here.
@@ -103,6 +110,52 @@ function createWindow() {
   })
 
   win.loadURL('cortiva://app/index.html')
+  return win
+}
+
+// ------------------------------------------------------------ updates
+// The installed app checks GitHub Releases, downloads a new version in the background and installs
+// it when Cortiva closes (or at once with "Restart to update"). The portable .exe can't update
+// itself, so it only says that a new version is out. Releases are read from the public repository;
+// the download is checked against the SHA-512 published with it.
+
+let updateInfo = { state: 'idle' }
+let updateWin = null
+const portable = !!process.env.PORTABLE_EXECUTABLE_DIR
+
+function sendUpdate(info) {
+  updateInfo = { ...info, portable }
+  if (updateWin && !updateWin.isDestroyed()) updateWin.webContents.send('update', updateInfo)
+}
+
+function setUpUpdates(win) {
+  updateWin = win
+  ipcMain.on('update-ready-for-events', (event) => {
+    if (isApp(event.senderFrame?.url ?? '')) event.sender.send('update', { ...updateInfo, portable })
+  })
+  if (!app.isPackaged) return
+  let autoUpdater
+  try {
+    autoUpdater = require('electron-updater').autoUpdater
+  } catch {
+    return
+  }
+  autoUpdater.autoDownload = !portable
+  autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.on('update-available', (i) => sendUpdate({ state: portable ? 'available' : 'downloading', version: i.version, percent: 0 }))
+  autoUpdater.on('download-progress', (p) => sendUpdate({ ...updateInfo, state: 'downloading', percent: Math.round(p.percent) }))
+  autoUpdater.on('update-downloaded', (i) => sendUpdate({ state: 'ready', version: i.version }))
+  autoUpdater.on('error', () => {
+    // Offline, GitHub unreachable…: try again at the next check, without bothering anyone.
+    if (updateInfo.state === 'downloading') sendUpdate({ state: 'idle' })
+  })
+  ipcMain.on('update-install', (event) => {
+    if (!isApp(event.senderFrame?.url ?? '') || updateInfo.state !== 'ready') return
+    autoUpdater.quitAndInstall(false, true)
+  })
+  const check = () => autoUpdater.checkForUpdates().catch(() => {})
+  setTimeout(check, 8000)
+  setInterval(check, 4 * 60 * 60 * 1000)
 }
 
 app.whenReady().then(() => {
@@ -174,7 +227,7 @@ app.whenReady().then(() => {
     item.setSavePath(path.join(recordingsDir(), name))
   })
 
-  createWindow()
+  setUpUpdates(createWindow())
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
 })
 

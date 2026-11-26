@@ -107,7 +107,7 @@ Camera keys work on the selected camera, only for controls its hardware has, and
 
 ## Download (Windows)
 
-Get the latest beta from the [Releases page](https://github.com/eric-2812/cortiva/releases): the installer (`Cortiva-Setup-<version>.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Cortiva**. See the [code signing policy](#code-signing-policy).
+Get the latest beta from the [Releases page](https://github.com/eric-2812/cortiva/releases): the installer (`Cortiva-Setup-<version>.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Cortiva**. From 0.10 the installed app updates itself (it downloads new releases in the background and installs them when it closes, or at once with *Restart to update*); the portable `.exe` tells you when a new one is out. See the [code signing policy](#code-signing-policy).
 
 Every change ships as a new release (and the website is updated with it): bump `version` in `package.json` (`0.2.0-beta`, `0.3.0-beta`…), describe the change in a new section at the top of [`CHANGELOG.md`](CHANGELOG.md), push, then run **Release (Windows)** from the Actions tab. It builds the Windows app, publishes a new release named after the version with that changelog section as its notes, and refuses to overwrite a version that was already released.
 
@@ -142,8 +142,9 @@ All team members use multi-factor authentication on GitHub and SignPath. Only th
 
 Cortiva has no accounts, no analytics and no server of its own, and it never uploads recordings. Everything — recordings, settings, shortcuts — stays on the computer or phone that made it.
 
-It only connects to other systems when you ask it to:
+It only connects to other systems when you ask it to, plus one update check:
 
+- **Updates** (installed desktop app only): it checks this repository's GitHub Releases when it opens and every 4 hours, and downloads new versions from there.
 - **Phones over Wi-Fi** (when you open the phone link): the public [PeerJS](https://peerjs.com/) server introduces the phone to the computer, and Google's STUN servers help them find each other on the network. The picture and sound then go directly between your devices, encrypted. Every phone has to be allowed in on the computer.
 - **IP cameras** you add: Cortiva connects to the address you type.
 - **Bluetooth cameras** (GoPro, Sony) you pair: Cortiva talks to them over Bluetooth only.

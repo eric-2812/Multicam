@@ -2,6 +2,8 @@ import { Icon } from './components/Icon'
 import { PhoneSender } from './components/PhoneSender'
 import { Shell } from './components/Shell'
 import { audio } from './engine/audio'
+import { useState } from 'react'
+import { describe, loadSaved, restoreDevices } from './engine/persist'
 import { store, useStore, type AddTab } from './store'
 
 /** Where each kind of camera gets connected. */
@@ -27,6 +29,16 @@ function Welcome() {
     audio.ensure()
     store.set({ started: true, page: 'setup', setupSection: 'devices', addTab: tab })
   }
+  const [saved] = useState(loadSaved)
+  const [restoring, setRestoring] = useState(false)
+  const hasDevices = !!saved && saved.cams.length + saved.mics.length > 0
+  const restore = async () => {
+    if (!saved) return
+    setRestoring(true)
+    audio.ensure()
+    await restoreDevices(saved)
+    store.set({ started: true, page: 'live' })
+  }
   return (
     <main className="welcome">
       <div className="welcome-inner">
@@ -44,7 +56,20 @@ function Welcome() {
           Plug in or pair your cameras and microphones, set each one up from here, and press record. Every camera and every mic writes its own file with the same start
           timecode, ready for a multicam edit.
         </p>
-        <h2 className="welcome-h">What are you connecting?</h2>
+        {hasDevices && (
+          <div className="welcome-restore">
+            <div>
+              <b>Pick up where you left off</b>
+              <small>
+                {describe(saved!)} · {saved!.project.name}, next take {saved!.project.take}
+              </small>
+            </div>
+            <button className="btn btn-primary" onClick={() => void restore()} disabled={restoring}>
+              {restoring ? 'Reconnecting…' : 'Restore last setup'}
+            </button>
+          </div>
+        )}
+        <h2 className="welcome-h">{hasDevices ? 'Or start fresh — what are you connecting?' : 'What are you connecting?'}</h2>
         <ul className="welcome-src">
           {SOURCES.map((s) => (
             <li key={s.tab}>

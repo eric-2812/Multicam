@@ -5,7 +5,7 @@
   "author": "Cortiva",
   "license": "GPL-3.0-or-later",
   "private": true,
-  "version": "0.9.0-beta",
+  "version": "0.10.0-beta",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -78,11 +78,22 @@
       "enableEmbeddedAsarIntegrityValidation": true,
       "onlyLoadAppFromAsar": true,
       "grantFileProtocolExtraPrivileges": false
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "eric-2812",
+        "repo": "cortiva",
+        "releaseType": "release"
+      }
+    ]
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/eric-2812/cortiva.git"
   },
-  "homepage": "https://eric-2812.github.io/cortiva/"
+  "homepage": "https://eric-2812.github.io/cortiva/",
+  "dependencies": {
+    "electron-updater": "6.8.11"
+  }
 }

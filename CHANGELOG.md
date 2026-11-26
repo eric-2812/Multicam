@@ -2,6 +2,21 @@
 
 Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
 
+## 0.10.0-beta — 26 nov 2026
+
+### Nuevo: la app se actualiza sola
+- La app instalada busca versiones nuevas al abrirse y cada 4 horas, y las descarga en segundo plano. Cuando están listas aparece un aviso: **"Cortiva x is ready"**, con **Restart to update** y un enlace a **What's new**. Si no reinicias, se instala sola al cerrar Cortiva.
+- No deja reiniciar mientras grabas.
+- La versión portable no puede actualizarse sola: avisa de que hay una versión nueva y te lleva a descargarla.
+- **Esta versión hay que instalarla a mano una vez.** Las anteriores no tenían el actualizador; a partir de la 0.10, las siguientes llegan solas.
+
+### Nuevo: recuerda tu configuración
+- Al abrir Cortiva aparece **"Pick up where you left off"**, con las cámaras y micrófonos de la última vez. **Restore last setup** los vuelve a conectar con sus nombres, números, ajustes (zoom, foco, exposición, color…), si estaban armados para grabar, y el volumen, procesado y "audio sigue a la cámara" de cada micrófono.
+- Se recuerdan siempre: el nombre del proyecto, el número de la siguiente toma (así los archivos no se repiten), los ajustes de grabación, los fotogramas por segundo, el título, la transición y la carpeta de grabación (el navegador vuelve a pedir permiso en la primera toma).
+- Las cámaras IP se recuerdan sin su contraseña. Los móviles, la pantalla compartida y las cámaras Bluetooth hay que volver a conectarlos, porque el navegador exige que lo hagas tú.
+- Si no pulsas Restore y empiezas de cero, lo guardado no se borra hasta que conectes algo nuevo.
+- Todo se guarda solo en este ordenador.
+
 ## 0.9.0-beta — 26 nov 2026
 
 ### Cortiva es software libre

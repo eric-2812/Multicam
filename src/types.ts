@@ -116,6 +116,11 @@ export interface VideoSource {
   name: string
   kind: SourceKind
   link: Link
+  /** The browser's id for a local camera, and the quality it was opened at (to reopen it next time). */
+  deviceId?: string
+  quality?: '720' | '1080' | '4k'
+  /** Address of a network camera (without any password). */
+  url?: string
   /** Model / origin shown under the name. */
   detail: string
   /** Motorised pan/tilt head. */
@@ -148,6 +153,8 @@ export type LatencyKind = 'measured' | 'estimated'
 export interface AudioChannel {
   id: string
   name: string
+  /** The browser's id for a local microphone (to reopen it next time). */
+  deviceId?: string
   link: Link
   detail: string
   kind: 'mic' | 'phone' | 'screen'

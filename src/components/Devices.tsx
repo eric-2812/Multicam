@@ -69,7 +69,7 @@ function UsbTab() {
 
   if (!mediaSupported()) return <p className="note bad">This browser cannot access cameras. Use a recent Chrome, Edge, Safari or Firefox over https.</p>
 
-  const run = async (key: string, f: () => Promise<void>) => {
+  const run = async (key: string, f: () => Promise<unknown>) => {
     setBusy(key)
     setError(null)
     try {
@@ -140,7 +140,7 @@ function MicTab() {
   const [error, setError] = useState<string | null>(null)
   const usedMics = useStore((s) => s.channels.map((x) => x.detail))
   if (!mediaSupported()) return <p className="note bad">This browser cannot access microphones. Use a recent Chrome, Edge, Safari or Firefox over https.</p>
-  const run = async (key: string, f: () => Promise<void>) => {
+  const run = async (key: string, f: () => Promise<unknown>) => {
     setBusy(key)
     setError(null)
     try {
@@ -378,7 +378,7 @@ function Detected(props: { match: RegExp; what: string; mics?: boolean }) {
   const used = useStore((s) => [...s.sources.map((x) => x.detail), ...s.channels.map((x) => x.detail)])
   const found = cams.filter((c) => props.match.test(c.label))
   const foundMics = props.mics ? mics.filter((m) => props.match.test(m.label)) : []
-  const run = async (key: string, f: () => Promise<void>) => {
+  const run = async (key: string, f: () => Promise<unknown>) => {
     setBusy(key)
     setError(null)
     try {

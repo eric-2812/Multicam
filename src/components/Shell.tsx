@@ -208,6 +208,53 @@ function useShortcuts() {
   }, [])
 }
 
+type UpdateInfo = Parameters<Parameters<NonNullable<Window['cortivaDesktop']>['onUpdate']>[0]>[0]
+
+/** Desktop app: a new version downloads by itself; this says so and offers to restart into it. */
+function useUpdate() {
+  const [info, setInfo] = useState<UpdateInfo | null>(null)
+  useEffect(() => window.cortivaDesktop?.onUpdate(setInfo), [])
+  return info
+}
+
+function UpdateBanner({ info }: { info: UpdateInfo | null }) {
+  const rec = useStore((s) => !!s.recordingSince)
+  const [hidden, setHidden] = useState<string | null>(null)
+  if (!info || (info.state !== 'ready' && info.state !== 'available') || hidden === info.version) return null
+  const notes = `https://github.com/eric-2812/cortiva/releases/tag/v${info.version}`
+  return (
+    <div className="update-banner" role="status">
+      <Icon name="download" size={14} />
+      <span>
+        {info.state === 'ready' ? (
+          <>
+            <b>Cortiva {info.version}</b> is ready. It installs when you close Cortiva, or now:
+          </>
+        ) : (
+          <>
+            <b>Cortiva {info.version}</b> is out. This portable copy can’t update itself — download the new one.
+          </>
+        )}
+      </span>
+      <a href={notes} target="_blank" rel="noreferrer" className="linkbtn">
+        What’s new
+      </a>
+      {info.state === 'ready' ? (
+        <button className="btn btn-sm btn-primary" disabled={rec} title={rec ? 'Stop recording first' : undefined} onClick={() => window.cortivaDesktop?.installUpdate()}>
+          Restart to update
+        </button>
+      ) : (
+        <a className="btn btn-sm btn-primary" href={notes} target="_blank" rel="noreferrer">
+          Download
+        </a>
+      )}
+      <button className="icon-btn" aria-label="Hide" onClick={() => setHidden(info.version ?? '')}>
+        <Icon name="close" size={12} />
+      </button>
+    </div>
+  )
+}
+
 /** Phones asking to join over Wi-Fi: nothing gets in until someone here allows it. */
 function JoinPrompts() {
   const reqs = useJoinRequests()
@@ -250,6 +297,7 @@ export function Shell() {
   const page = useStore((s) => s.page)
   const rec = useStore((s) => !!s.recordingSince)
   useShortcuts()
+  const update = useUpdate()
   useEffect(() => video.start(), [])
   // Warn before closing the tab mid-take.
   useEffect(() => {
@@ -261,6 +309,7 @@ export function Shell() {
   return (
     <div className={`app ${rec ? 'is-recording' : ''}`}>
       <Header />
+      <UpdateBanner info={update} />
       <main className="app-main">
         {/* Live stays mounted: the program monitor keeps rendering (and recording) while you're in Setup. */}
         <div className="page-live" hidden={page !== 'live'}>

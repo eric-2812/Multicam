@@ -48,6 +48,14 @@ jobs:
           # No code-signing certificate yet: Windows will show "unknown publisher" on first run.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+      - name: Make the update file available under both channel names
+        shell: bash
+        run: |
+          # Installed copies look for latest.yml or beta.yml depending on their version.
+          [ -f release/beta.yml ] && [ ! -f release/latest.yml ] && cp release/beta.yml release/latest.yml
+          [ -f release/latest.yml ] && [ ! -f release/beta.yml ] && cp release/latest.yml release/beta.yml
+          ls release/*.yml
+
       - name: Publish release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
@@ -57,9 +65,13 @@ jobs:
           body_path: release-notes.md
           prerelease: false
           make_latest: true
+          # The .yml and .blockmap files let installed copies update themselves.
           files: |
             release/Cortiva-Setup-*.exe
             release/Cortiva-*-portable.exe
+            release/Cortiva-Setup-*.exe.blockmap
+            release/latest.yml
+            release/beta.yml
 
   # The website is updated only by a release, from the same commit, once the .exe files are out.
   web:

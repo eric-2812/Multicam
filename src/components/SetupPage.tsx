@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ACTIONS, RESERVED, bind, comboOf, prettyKey, resetBindings, setCapturing, useBindings, type Group, type KeyAction } from '../engine/keys'
+import { saveFolder } from '../engine/persist'
 import { chooseFolder, folderSupported } from '../engine/recorder'
 import { store, toast, updateSource, useStore, type SetupSection } from '../store'
 import { DevicesSection } from './Devices'
@@ -62,7 +63,7 @@ function RecordingSection() {
             ]}
             onChange={(v) => {
               if (v === 'folder' && !folderSupported()) return toast('Saving to a folder needs Chrome or Edge on a computer.', 'bad')
-              if (v === 'folder' && !rec.folderName) void chooseFolder().catch(() => {})
+              if (v === 'folder' && !rec.folderName) void chooseFolder().then(saveFolder).catch(() => {})
               else set({ dest: v })
             }}
           />
@@ -71,7 +72,7 @@ function RecordingSection() {
           <Row label="Folder">
             <div className="row">
               <span className="ro mono">{rec.folderName ?? 'None chosen'}</span>
-              <button className="btn btn-sm" onClick={() => void chooseFolder().catch(() => {})}>
+              <button className="btn btn-sm" onClick={() => void chooseFolder().then(saveFolder).catch(() => {})}>
                 <Icon name="folder" size={13} /> Choose…
               </button>
             </div>

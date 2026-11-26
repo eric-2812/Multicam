@@ -295,7 +295,7 @@ export async function openCameraStream(video: MediaTrackConstraints) {
   }
 }
 
-export async function addWebcam(device: MediaDeviceInfo, quality: '720' | '1080' | '4k') {
+export async function addWebcam(device: MediaDeviceInfo, quality: '720' | '1080' | '4k'): Promise<string> {
   const h = quality === '4k' ? 2160 : quality === '1080' ? 1080 : 720
   const open = () => openCameraStream({ deviceId: { exact: device.deviceId }, height: { ideal: h }, width: { ideal: (h * 16) / 9 }, frameRate: { ideal: 30 } })
   const id = uid('cam')
@@ -307,14 +307,15 @@ export async function addWebcam(device: MediaDeviceInfo, quality: '720' | '1080'
   const track = stream.getVideoTracks()[0]
   const name = device.label || 'Camera'
   const link = guessLink(name)
-  const src = { ...newSource({ name: shortName(name), kind: 'webcam', link, detail: name, hw: capsOf(track), ...estimate(link, name) }), id }
+  const src = { ...newSource({ name: shortName(name), kind: 'webcam', link, detail: name, hw: capsOf(track), ...estimate(link, name) }), id, deviceId: device.deviceId, quality }
   video.attachStream(src.id, stream)
   watchCamera(src.id, track, src.name, open)
   addSource(src)
   toast(`${src.name} connected`, 'good')
+  return src.id
 }
 
-export async function addMic(device: MediaDeviceInfo) {
+export async function addMic(device: MediaDeviceInfo): Promise<string> {
   audio.ensure()
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: { deviceId: { exact: device.deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
@@ -325,6 +326,7 @@ export async function addMic(device: MediaDeviceInfo) {
   const base = ((stream.getAudioTracks()[0].getSettings() as { latency?: number }).latency ?? 0.01) * 1000
   const ch = newChannel({
     name: shortName(label),
+    deviceId: device.deviceId,
     kind: 'mic',
     link,
     detail: label,
@@ -338,6 +340,7 @@ export async function addMic(device: MediaDeviceInfo) {
   })
   addChannel(ch)
   toast(`${ch.name} added to the mixer`, 'good')
+  return ch.id
 }
 
 export async function addScreen() {
@@ -368,10 +371,10 @@ export function withoutPassword(url: string) {
   }
 }
 
-export function addUrlCamera(name: string, url: string) {
+export function addUrlCamera(name: string, url: string): string {
   const asVideo = /\.(mp4|webm|mov|m3u8|ogv)(\?|$)/i.test(url)
   // The address is shown on screen and saved in each take sheet: never with its password.
-  const src = newSource({ name: name || 'IP camera', kind: 'url', link: 'network', detail: withoutPassword(url), ...estimate('network') })
+  const src = { ...newSource({ name: name || 'IP camera', kind: 'url', link: 'network', detail: withoutPassword(url), ...estimate('network') }), url: withoutPassword(url) }
   addSource(src)
   video.attachUrl(
     src.id,
@@ -383,6 +386,7 @@ export function addUrlCamera(name: string, url: string) {
     },
     () => updateSource(src.id, { tainted: true }),
   )
+  return src.id
 }
 
 /** Settings that the camera itself applies (the rest are done in this app's picture pipeline). */
