@@ -30,6 +30,8 @@ const notes = `${changes}
 - \`${pkg.productName}-${version}-portable.exe\` — un solo archivo, sin instalar nada.
 
 Windows SmartScreen puede decir "Windows protegió su PC" porque la app aún no está firmada: pulsa **Más información → Ejecutar de todas formas**.
+
+[Code signing policy](https://github.com/eric-2812/cortiva#code-signing-policy) · [Privacy](https://github.com/eric-2812/cortiva#privacy) · Licencia: GPL v3
 `
 writeFileSync('release-notes.md', notes)
 const out = `tag=${tag}\nname=${name}\n`

@@ -107,7 +107,7 @@ Camera keys work on the selected camera, only for controls its hardware has, and
 
 ## Download (Windows)
 
-Get the latest beta from the [Releases page](https://github.com/eric-2812/cortiva/releases): the installer (`Cortiva-Setup-<version>.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Cortiva**.
+Get the latest beta from the [Releases page](https://github.com/eric-2812/cortiva/releases): the installer (`Cortiva-Setup-<version>.exe`) or the single-file portable `.exe`. It isn't code-signed yet, so SmartScreen may warn on first run — **More info → Run anyway**. Recordings without a chosen folder go to **Videos\Cortiva**. See the [code signing policy](#code-signing-policy).
 
 Every change ships as a new release (and the website is updated with it): bump `version` in `package.json` (`0.2.0-beta`, `0.3.0-beta`…), describe the change in a new section at the top of [`CHANGELOG.md`](CHANGELOG.md), push, then run **Release (Windows)** from the Actions tab. It builds the Windows app, publishes a new release named after the version with that changelog section as its notes, and refuses to overwrite a version that was already released.
 
@@ -121,6 +121,35 @@ npm run app      # run the desktop app (Electron)
 npm run dist:win # build the Windows .exe files into release/ (on Windows)
 ```
 
-Pushing to `main` deploys to GitHub Pages (`.github/workflows/pages.yml` → `gh-pages`). Phones need https for the camera, so use the Pages URL for the Wi-Fi feature. To use your own PeerJS signalling server, open the app with `?signal=host:port`.
+Each release also publishes the website to GitHub Pages (`gh-pages`); `.github/workflows/pages.yml` re-publishes it by hand. Phones need https for the camera, so use the Pages URL for the Wi-Fi feature. To use your own PeerJS signalling server, open the app with `?signal=host:port`.
 
 Best in Chrome or Edge, which add folder recording, Web Bluetooth and the most camera controls.
+
+## Code signing policy
+
+Windows releases are built from this repository's source by GitHub Actions ([`release.yml`](.github/workflows/release.yml)) — never on a personal computer — and published to the [Releases page](https://github.com/eric-2812/cortiva/releases) together with the website, from the same commit.
+
+Signing is being set up with the SignPath Foundation's free programme for open-source projects. Once it is in place: free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+
+Team roles:
+
+- Committers and reviewers: [eric-2812](https://github.com/eric-2812)
+- Approvers (every signed release is approved by hand): [eric-2812](https://github.com/eric-2812)
+
+All team members use multi-factor authentication on GitHub and SignPath. Only the binaries built by the release workflow from this repository are signed — no third-party programs.
+
+## Privacy
+
+Cortiva has no accounts, no analytics and no server of its own, and it never uploads recordings. Everything — recordings, settings, shortcuts — stays on the computer or phone that made it.
+
+It only connects to other systems when you ask it to:
+
+- **Phones over Wi-Fi** (when you open the phone link): the public [PeerJS](https://peerjs.com/) server introduces the phone to the computer, and Google's STUN servers help them find each other on the network. The picture and sound then go directly between your devices, encrypted. Every phone has to be allowed in on the computer.
+- **IP cameras** you add: Cortiva connects to the address you type.
+- **Bluetooth cameras** (GoPro, Sony) you pair: Cortiva talks to them over Bluetooth only.
+
+The website version is served by GitHub Pages, which keeps its own access logs ([GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement)).
+
+## License
+
+Cortiva is free software under the [GNU General Public License v3.0 or later](LICENSE): you can use, study, share and change it; if you distribute a modified version, you must share its source under the same licence. It comes with no warranty.

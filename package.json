@@ -3,8 +3,9 @@
   "productName": "Cortiva",
   "description": "Multicam recording and control: record every camera and mic in sync.",
   "author": "Cortiva",
+  "license": "GPL-3.0-or-later",
   "private": true,
-  "version": "0.8.0-beta",
+  "version": "0.9.0-beta",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -16,6 +17,8 @@
     "dist:win": "npm run build && electron-builder --win --publish never"
   },
   "devDependencies": {
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/inter": "5.3.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -38,7 +41,8 @@
     "files": [
       "dist/**",
       "electron/**",
-      "package.json"
+      "package.json",
+      "LICENSE"
     ],
     "win": {
       "icon": "electron/icon.png",
@@ -60,7 +64,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Cortiva-Setup-${version}.exe"
+      "artifactName": "Cortiva-Setup-${version}.exe",
+      "license": "LICENSE"
     },
     "portable": {
       "artifactName": "Cortiva-${version}-portable.exe"
@@ -74,5 +79,10 @@
       "onlyLoadAppFromAsar": true,
       "grantFileProtocolExtraPrivileges": false
     }
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eric-2812/cortiva.git"
+  },
+  "homepage": "https://eric-2812.github.io/cortiva/"
 }

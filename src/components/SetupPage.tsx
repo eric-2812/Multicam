@@ -307,6 +307,20 @@ export function SetupPage() {
             </span>
           </button>
         ))}
+        <p className="setup-about">
+          Cortiva v{__APP_VERSION__} · Free software under the{' '}
+          <a href="https://github.com/eric-2812/cortiva/blob/main/LICENSE" target="_blank" rel="noreferrer">
+            GPL v3
+          </a>{' '}
+          ·{' '}
+          <a href="https://github.com/eric-2812/cortiva" target="_blank" rel="noreferrer">
+            Source code
+          </a>{' '}
+          ·{' '}
+          <a href="https://github.com/eric-2812/cortiva#privacy" target="_blank" rel="noreferrer">
+            Privacy
+          </a>
+        </p>
       </nav>
       <div className="setup-body">
         <div className="setup-inner">

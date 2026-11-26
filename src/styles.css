@@ -3400,3 +3400,21 @@ span.strip-name {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* licence and source line under the Setup sections */
+.setup-about {
+  margin: 16px 8px 0;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.setup-about a {
+  color: var(--text-2);
+}
+
+@media (max-width: 760px) {
+  .setup-about {
+    display: none;
+  }
+}

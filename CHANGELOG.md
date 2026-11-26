@@ -2,6 +2,16 @@
 
 Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
 
+## 0.9.0-beta — 26 nov 2026
+
+### Cortiva es software libre
+- Cortiva tiene licencia **GPL v3**: cualquiera puede usarla, estudiarla y modificarla, y quien reparta una versión modificada tiene que publicar su código con la misma licencia. El instalador muestra la licencia, y en **Setup** hay un enlace a la licencia, al código y a la privacidad.
+- El README tiene ahora una **política de firma de código** y una **nota de privacidad**, que pide SignPath para firmar la app gratis.
+
+### Privacidad
+- **La app ya no se conecta a Google al arrancar.** Las tipografías (Inter e IBM Plex Mono) vienen dentro de la app en vez de descargarse de Google Fonts. Además, la app de escritorio se ve igual sin internet.
+- Cortiva solo se conecta a otros sitios cuando tú lo pides: al unir un móvil por Wi-Fi, al añadir una cámara IP o al emparejar una cámara por Bluetooth.
+
 ## 0.8.0-beta — 26 nov 2026
 
 ### Nuevo: aprobar cada móvil
