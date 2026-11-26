@@ -3,6 +3,7 @@ import { recorder, whyCantRecord } from '../engine/recorder'
 import { masterTC, nowMs, runTC } from '../engine/timecode'
 import { video } from '../engine/video'
 import { handleKey, useOsd } from '../engine/keys'
+import { allowPhone, decline, useJoinRequests } from '../engine/phone'
 import { store, toast, useStore, type Page } from '../store'
 import { Icon } from './Icon'
 import { LivePage } from './LivePage'
@@ -207,6 +208,33 @@ function useShortcuts() {
   }, [])
 }
 
+/** Phones asking to join over Wi-Fi: nothing gets in until someone here allows it. */
+function JoinPrompts() {
+  const reqs = useJoinRequests()
+  if (!reqs.length) return null
+  return (
+    <div className="join-prompts" role="region" aria-label="Phones asking to join">
+      {reqs.map((r) => (
+        <div key={r.peer} className="join-prompt" role="alert">
+          <Icon name="phone" size={16} />
+          <p>
+            <b>{r.name}</b> wants to join as a camera over Wi-Fi.
+            <small>Only allow phones you know — anyone with the room code can ask.</small>
+          </p>
+          <div className="row">
+            <button className="btn btn-sm btn-ghost" onClick={() => decline(r.peer)}>
+              Deny
+            </button>
+            <button className="btn btn-sm btn-primary" onClick={() => allowPhone(r.peer)}>
+              Allow
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /** What a shortcut just changed ("Cam 1 — Shutter 1/100 · 180°"), shown briefly over the picture. */
 function KeyReadout() {
   const o = useOsd()
@@ -244,6 +272,7 @@ export function Shell() {
       <StatusBar />
       <Toasts />
       <KeyReadout />
+      <JoinPrompts />
     </div>
   )
 }

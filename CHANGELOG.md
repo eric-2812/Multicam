@@ -2,6 +2,14 @@
 
 Cada versión es una release propia en GitHub. La sección de cada versión es lo que aparece en sus notas.
 
+## 0.8.0-beta — 26 nov 2026
+
+### Nuevo: aprobar cada móvil
+- **Ningún móvil entra sin tu permiso.** Cuando un móvil pide unirse por Wi-Fi, aparece arriba a la derecha un aviso: **"Phone X wants to join"**, con **Allow** y **Deny**. Hasta que pulsas Allow no se añade ni su cámara ni su micrófono, aunque tenga el enlace o el QR.
+- Mientras espera, el móvil muestra "Waiting for the computer to allow this phone". Si lo rechazas, el móvil lo dice y deja de intentarlo.
+- Un móvil que ya permitiste se reconecta solo si se corta el Wi-Fi, sin volver a preguntar (mientras no recargue la página).
+- Si nadie responde en 90 segundos, se rechaza solo. Como mucho se muestran 4 peticiones a la vez, para que nadie pueda llenar la pantalla de avisos.
+
 ## 0.7.0-beta — 26 nov 2026
 
 ### Arreglos

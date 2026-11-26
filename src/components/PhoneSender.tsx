@@ -52,6 +52,8 @@ function beep() {
 const STATE_TEXT: Record<string, string> = {
   connecting: 'Connecting to the control room…',
   live: 'Connected',
+  waiting: 'Waiting for the computer to allow this phone — tap Allow on the Cortiva screen.',
+  denied: 'The computer turned this phone away. Stop and ask the operator to allow it, then try again.',
   lost: 'Connection lost — retrying…',
   'no-room': 'Control room not found. Is the “Phone over Wi-Fi” window open on the computer? Retrying…',
 }

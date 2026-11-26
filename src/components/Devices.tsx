@@ -245,6 +245,10 @@ function PhoneTab() {
         <ol className="steps">
           <li>Phone and this computer on the same Wi-Fi works best (it also works over mobile data, with more delay).</li>
           <li>On the phone, allow the camera and tap <b>Go live</b>.</li>
+          <li>
+            Here, tap <b>Allow</b> when the phone asks to join. Nothing gets in without it, even with the link; a phone you allowed reconnects on its own if
+            the Wi-Fi drops.
+          </li>
           <li>The phone shows a red border when it is on air and green when it is on preview — like a tally light.</li>
         </ol>
         <h4>Connected phones</h4>

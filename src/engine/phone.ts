@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import Peer, { type DataConnection, type MediaConnection, type PeerOptions } from 'peerjs'
 import { addChannel, addSource, store, toast, updateSource } from '../store'
 import type { HwCaps, RawCap } from '../types'
@@ -25,6 +26,8 @@ function peerOptions(): PeerOptions {
 
 export type HostMsg =
   | { type: 'tally'; tally: Tally }
+  | { type: 'wait' }
+  | { type: 'denied' }
   | { type: 'hw'; c: Record<string, unknown> }
   | { type: 'flip' }
   | { type: 'pong'; t0: number; th: number }
@@ -175,6 +178,8 @@ function parseHostMsg(raw: unknown): HostMsg | null {
     }
     case 'flip':
     case 'slate':
+    case 'wait':
+    case 'denied':
       return { type: raw.type }
     case 'pong':
       return finite(raw.t0) && finite(raw.th) ? { type: 'pong', t0: raw.t0, th: raw.th } : null
@@ -246,46 +251,163 @@ export function openRoom() {
       l.conn.send({ type: 'rec', on: d.on, take: d.take, startMs: d.startMs, number: src?.number } satisfies HostMsg)
     }
   })
-  p.on('connection', (conn) => {
-    const link = linkFor(conn.peer, conn.metadata?.name)
-    if (!link) return conn.close()
-    link.conn = conn
-    conn.on('data', (raw) => {
-      const msg = parsePhoneMsg(raw)
-      if (msg) handlePhoneMsg(link, msg)
+  // Every new phone waits until someone at the computer allows it (see gate()).
+  p.on('connection', (conn) => (approved.has(conn.peer) ? acceptConn(conn) : gate(conn.peer, conn.metadata?.name, { conn })))
+  p.on('call', (call) => (approved.has(call.peer) ? acceptCall(call) : gate(call.peer, call.metadata?.name, { call })))
+}
+
+function acceptConn(conn: DataConnection, buffered: unknown[] = []) {
+  const link = linkFor(conn.peer, conn.metadata?.name)
+  if (!link) return conn.close()
+  link.conn = conn
+  const onData = (raw: unknown) => {
+    const msg = parsePhoneMsg(raw)
+    if (msg) handlePhoneMsg(link, msg)
+  }
+  conn.on('data', onData)
+  // The first tally tells the phone it's in (older phones go live on it too).
+  const welcome = () => conn.send({ type: 'tally', tally: currentTally(link.sourceId) } satisfies HostMsg)
+  if (conn.open) welcome()
+  else conn.on('open', welcome)
+  buffered.forEach(onData)
+  conn.on('close', () => lost(link))
+}
+
+function acceptCall(call: MediaConnection) {
+  const link = linkFor(call.peer, call.metadata?.name)
+  if (!link) return call.close()
+  link.call = call
+  call.answer()
+  call.on('stream', (stream) => {
+    video.attachStream(link.sourceId, stream, {
+      onTally: (t) => link.conn?.open && link.conn.send({ type: 'tally', tally: t } satisfies HostMsg),
+      // Stopping a remote track would not reach the phone; just hang up.
+      cleanup: () => {
+        call.close()
+        link.conn?.close()
+      },
     })
-    conn.on('open', () => conn.send({ type: 'tally', tally: currentTally(link.sourceId) } satisfies HostMsg))
-    conn.on('close', () => lost(link))
-  })
-  p.on('call', (call) => {
-    const link = linkFor(call.peer, call.metadata?.name)
-    if (!link) return call.close()
-    link.call = call
-    call.answer()
-    call.on('stream', (stream) => {
-      video.attachStream(link.sourceId, stream, {
-        onTally: (t) => link.conn?.open && link.conn.send({ type: 'tally', tally: t } satisfies HostMsg),
-        // Stopping a remote track would not reach the phone; just hang up.
-        cleanup: () => {
-          call.close()
-          link.conn?.close()
-        },
-      })
-      updateSource(link.sourceId, { status: 'live' })
-      if (stream.getAudioTracks().length) {
-        if (!link.channelId) {
-          const src = store.get().sources.find((s) => s.id === link.sourceId)
-          const ch = newChannel({ name: `${src?.name ?? 'Phone'} mic`, kind: 'phone', link: 'wifi', detail: 'Phone microphone', afv: null })
-          link.channelId = ch.id
-          addChannel(ch)
-        }
-        audio.addStream(link.channelId, stream)
+    updateSource(link.sourceId, { status: 'live' })
+    if (stream.getAudioTracks().length) {
+      if (!link.channelId) {
+        const src = store.get().sources.find((s) => s.id === link.sourceId)
+        const ch = newChannel({ name: `${src?.name ?? 'Phone'} mic`, kind: 'phone', link: 'wifi', detail: 'Phone microphone', afv: null })
+        link.channelId = ch.id
+        addChannel(ch)
       }
-      watchStats(link, call)
-    })
-    call.on('close', () => lost(link))
-    call.on('error', () => lost(link))
+      audio.addStream(link.channelId, stream)
+    }
+    watchStats(link, call)
   })
+  call.on('close', () => lost(link))
+  call.on('error', () => lost(link))
+}
+
+// ------------------------------------------------------------ approving phones
+// Knowing the room code isn't enough: someone at the computer allows each phone. A phone that was
+// allowed (same page on the phone) comes back on its own after a Wi-Fi drop.
+
+export interface JoinRequest {
+  peer: string
+  name: string
+}
+
+interface Pending extends JoinRequest {
+  conns: DataConnection[]
+  calls: MediaConnection[]
+  buffered: unknown[]
+  onData: Map<DataConnection, (raw: unknown) => void>
+  timer: number
+}
+
+const approved = new Set<string>()
+const declined = new Set<string>()
+const pending = new Map<string, Pending>()
+const MAX_PENDING = 4
+const ASK_FOR_MS = 90_000
+
+let requests: JoinRequest[] = []
+const requestListeners = new Set<() => void>()
+function publishRequests() {
+  requests = [...pending.values()].map(({ peer, name }) => ({ peer, name }))
+  requestListeners.forEach((l) => l())
+}
+
+/** Phones waiting to be allowed in, for the prompt on screen. */
+export function useJoinRequests() {
+  return useSyncExternalStore(
+    (l) => {
+      requestListeners.add(l)
+      return () => requestListeners.delete(l)
+    },
+    () => requests,
+  )
+}
+
+function gate(peer: string, rawName: unknown, item: { conn?: DataConnection; call?: MediaConnection }) {
+  if (declined.has(peer) || (!pending.has(peer) && pending.size >= MAX_PENDING)) {
+    item.conn?.close()
+    item.call?.close()
+    return
+  }
+  let req = pending.get(peer)
+  if (!req) {
+    req = { peer, name: cleanName(rawName, 'Phone'), conns: [], calls: [], buffered: [], onData: new Map(), timer: 0 }
+    req.timer = window.setTimeout(() => decline(peer, true), ASK_FOR_MS)
+    pending.set(peer, req)
+    publishRequests()
+  }
+  const r = req
+  if (item.conn) {
+    const conn = item.conn
+    r.conns.push(conn)
+    // Keep what the phone says while it waits (its name and camera), to use once it's allowed.
+    const onData = (raw: unknown) => r.buffered.length < 20 && r.buffered.push(raw)
+    r.onData.set(conn, onData)
+    conn.on('data', onData)
+    const wait = () => conn.send({ type: 'wait' } satisfies HostMsg)
+    if (conn.open) wait()
+    else conn.on('open', wait)
+    conn.on('close', () => {
+      // The phone gave up before anyone answered.
+      if (pending.get(peer) === r && r.conns.every((c) => !c.open)) {
+        clearTimeout(r.timer)
+        pending.delete(peer)
+        publishRequests()
+      }
+    })
+  }
+  if (item.call) r.calls.push(item.call)
+}
+
+export function allowPhone(peer: string) {
+  const r = pending.get(peer)
+  if (!r) return
+  clearTimeout(r.timer)
+  pending.delete(peer)
+  publishRequests()
+  approved.add(peer)
+  for (const conn of r.conns) {
+    const f = r.onData.get(conn)
+    if (f) conn.off('data', f)
+    acceptConn(conn, r.buffered)
+  }
+  r.calls.forEach(acceptCall)
+}
+
+export function decline(peer: string, timedOut = false) {
+  const r = pending.get(peer)
+  if (!r) return
+  clearTimeout(r.timer)
+  pending.delete(peer)
+  publishRequests()
+  declined.add(peer)
+  for (const conn of r.conns) {
+    if (conn.open) conn.send({ type: 'denied' } satisfies HostMsg)
+    setTimeout(() => conn.close(), 300)
+  }
+  r.calls.forEach((c) => c.close())
+  toast(timedOut ? `${r.name} wasn't allowed in time and was turned away` : `${r.name} turned away`, 'info')
 }
 
 function currentTally(sourceId: string): Tally {
@@ -410,6 +532,7 @@ export function joinRoom(
   let conn: DataConnection | null = null
   let current = stream
   let closed = false
+  let live = false
   let battery: { level: number; charging: boolean; addEventListener(t: string, f: () => void): void } | null = null
   const target = room.startsWith('cortiva-') ? room : `cortiva-${room}`
 
@@ -444,6 +567,7 @@ export function joinRoom(
     conn = p.connect(target, { metadata: { name }, reliable: true })
     conn.on('open', () => {
       conn!.send({ type: 'hello', name, caps, facing } satisfies PhoneMsg)
+      live = false
       sendBattery()
       best = null
       clearInterval(syncTimer)
@@ -452,12 +576,21 @@ export function joinRoom(
       call = p.call(target, current, { metadata: { name } })
       call.on('stream', () => {})
       call.on('close', () => !closed && (on.state('lost'), setTimeout(dial, 2000)))
-      on.state('live')
     })
     conn.on('data', (raw) => {
       const m = parseHostMsg(raw)
       if (!m) return
-      if (m.type === 'tally') on.tally(m.tally)
+      // The control room's first tally means this phone is in.
+      if (m.type === 'tally' && !live) {
+        live = true
+        on.state('live')
+      }
+      if (m.type === 'wait') on.state('waiting')
+      else if (m.type === 'denied') {
+        closed = true
+        on.state('denied')
+        p.destroy()
+      } else if (m.type === 'tally') on.tally(m.tally)
       else if (m.type === 'hw') on.hw(m)
       else if (m.type === 'flip') on.flip()
       else if (m.type === 'pong') onPong(m)

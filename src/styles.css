@@ -3354,3 +3354,49 @@ span.strip-name {
   width: fit-content;
   max-width: 100%;
 }
+
+/* phones asking to join */
+.join-prompts {
+  position: fixed;
+  top: 52px;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  z-index: 62;
+  display: grid;
+  gap: 8px;
+  width: min(360px, calc(100vw - 24px));
+}
+
+.join-prompt {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 12px;
+  padding: 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  background: var(--panel-3);
+  box-shadow: inset 3px 0 0 var(--amber), 0 12px 32px rgba(0, 0, 0, 0.55);
+  animation: toast-in 0.18s ease-out;
+}
+
+.join-prompt > svg {
+  margin-top: 2px;
+  color: var(--amber);
+}
+
+.join-prompt p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.join-prompt small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.join-prompt .row {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 8px;
+}
