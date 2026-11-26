@@ -1,0 +1,7 @@
+[
+  {
+    "check": "one-section",
+    "target": "section.hero.hero--centred > div.wrap > div.hero-text > div.hero__window",
+    "reason": "The hero window is Cortiva's own interface drawn in HTML (the dealt centred hero's product window); its camera pictures are drawn without photographs because the owner asked for no images, so the checker reads it as text only."
+  }
+]

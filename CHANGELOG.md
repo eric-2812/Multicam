@@ -2,6 +2,14 @@
 
 Every version is its own release on GitHub. Each version's section below is what its release notes say.
 
+## 0.14.0-beta — 26 Nov 2026
+
+### Presentation page polish
+- The camera cards and the keyboard section say plainly what they are about.
+- On a phone, "How multicam recording works" now fills its two screens exactly, so the next section no longer peeks in.
+- The "Pause motion" button shows a clear outline when reached with the keyboard.
+- The page now passes the design kit's full check.
+
 ## 0.13.0-beta — 26 Nov 2026
 
 ### The presentation page, redesigned
