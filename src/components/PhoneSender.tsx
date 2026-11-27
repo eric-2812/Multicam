@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { joinRoom, type Sender } from '../engine/phone'
+import { joinRoom, loadPeer, type Sender } from '../engine/phone'
 import type { Tally } from '../engine/video'
 import { capsOf } from '../engine/devices'
 import { nowMs, todTC } from '../engine/timecode'
@@ -118,7 +118,7 @@ export function PhoneSender({ room }: { room: string }) {
     setError(null)
     try {
       localStorage.setItem('cortiva-phone-name', name)
-      const s = await openCamera(facing, mic)
+      const [s] = await Promise.all([openCamera(facing, mic), loadPeer()])
       streamRef.current = s
       setStream(s)
       sender.current = joinRoom(room, name, s, capsOf(s.getVideoTracks()[0]), facing, {

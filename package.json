@@ -5,7 +5,7 @@
   "author": "Cortiva",
   "license": "GPL-3.0-or-later",
   "private": true,
-  "version": "0.15.0-beta",
+  "version": "0.16.0-beta",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -17,8 +17,8 @@
     "dist:win": "npm run build && electron-builder --win --publish never"
   },
   "devDependencies": {
+    "@fontsource-variable/inter": "5.3.0",
     "@fontsource/ibm-plex-mono": "5.3.0",
-    "@fontsource/inter": "5.3.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -26,12 +26,14 @@
     "animejs": "4.5.0",
     "electron": "^45.4.1",
     "electron-builder": "^26.18.0",
+    "lightningcss": "1.33.0",
     "motion": "14.14.0",
     "number-flow": "0.6.2",
     "peerjs": "^1.5.5",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "rolldown": "1.2.19",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"
   },
@@ -43,6 +45,10 @@
     },
     "files": [
       "dist/**",
+      "!dist/index.html",
+      "!dist/kit/**",
+      "!dist/assets/home-*",
+      "!dist/assets/sections-*",
       "electron/**",
       "package.json",
       "LICENSE"
@@ -89,6 +95,10 @@
         "repo": "cortiva",
         "releaseType": "release"
       }
+    ],
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US"
     ]
   },
   "repository": {

@@ -1,4 +1,3 @@
-import QRCode from 'qrcode'
 import { useEffect, useState, type ReactNode } from 'react'
 import {
   BT_HINT,
@@ -212,7 +211,7 @@ function PhoneTab() {
   }, [])
   const url = room.room ? joinUrl(room.room) : ''
   useEffect(() => {
-    if (url) void QRCode.toDataURL(url, { margin: 1, width: 360, color: { dark: '#0b0d12', light: '#ffffff' } }).then(setQr)
+    if (url) void import('qrcode').then((QR) => QR.toDataURL(url, { margin: 1, width: 360, color: { dark: '#0b0d12', light: '#ffffff' } })).then(setQr)
   }, [url])
 
   return (

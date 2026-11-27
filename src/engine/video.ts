@@ -138,6 +138,8 @@ class VideoEngine {
   /** Program and preview are always composed (so the program can record from any page). */
   private monitors = { program: makeCanvas(PGM_W, PGM_H), preview: makeCanvas(640, 360) }
   private raf = 0
+  private timer = 0
+  private running = false
   private autoStart = 0
   private ftbLevel = 0
   private ltLevel = 0
@@ -249,12 +251,22 @@ class VideoEngine {
   }
 
   start() {
-    if (this.raf) return
+    if (this.running) return
+    this.running = true
+    // Drawn on every screen refresh. A hidden window (minimised, or a background tab) gets no
+    // refreshes, so a timer keeps the program picture, and its recording, going meanwhile.
+    const next = () => {
+      cancelAnimationFrame(this.raf)
+      clearTimeout(this.timer)
+      if (document.hidden) this.timer = window.setTimeout(loop, 1000 / 30)
+      else this.raf = requestAnimationFrame(loop)
+    }
     const loop = () => {
-      this.raf = requestAnimationFrame(loop)
+      next()
       this.tick(performance.now() / 1000)
     }
-    this.raf = requestAnimationFrame(loop)
+    next()
+    document.addEventListener('visibilitychange', next)
   }
 
   // ------------------------------------------------------------ per frame

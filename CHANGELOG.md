@@ -2,6 +2,20 @@
 
 Every version is its own release on GitHub. Each version's section below is what its release notes say.
 
+## 0.16.0-beta — 27 Nov 2026
+
+### Faster everywhere
+- **The app opens faster.** The first screen loads about half as much code as before. The control room, the phone link and the QR code load only when you use them.
+- **Phones join faster.** The page a phone opens to join is lighter, which helps most on mobile data.
+- **The presentation page loads faster** and stays smooth while it animates. Its own speed score went from 79 to 94 out of 100. Its animations further down the page load once the top is on screen.
+- **Smaller download for Windows.** The installer and the portable app leave out the translation files a desktop app in English doesn't use, and the presentation page. They're also packed tighter.
+- **Lighter fonts.** Inter now ships as one file for every weight. The app only carries the Latin letters it uses.
+
+### Fixes
+- **Recording no longer slows down or freezes when Cortiva's window is minimised** or behind other windows. The desktop app keeps drawing and timing at full speed. In the browser, a background tab no longer stops the program picture completely, but the browser slows it down: keep the tab in front while recording, or use the desktop app.
+- The desktop window now appears once its first screen is drawn, with no empty frame first.
+- On the presentation page, labels on coloured backgrounds are easier to read.
+
 ## 0.15.0-beta — 26 Nov 2026
 
 ### Presentation page fixes

@@ -199,7 +199,7 @@
   left: 8px;
   padding: 1px 6px;
   border-radius: 3px;
-  background: var(--v-red);
+  background: #dc2626;
   color: #fff;
   font: 600 13px var(--font-mono);
 }
@@ -444,8 +444,9 @@
 .seg-1 { background: #9f1239; }
 .seg-2 { background: #1d4ed8; }
 .seg-3 { background: #b45309; }
-.seg { opacity: 0.55; transition: opacity 0.2s; }
-.seg.is-live { opacity: 1; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55); }
+/* the cuts the head isn't on sit in shade (a shadow, so the white label keeps its contrast) */
+.seg { box-shadow: inset 0 0 0 40px rgba(0, 0, 0, 0.42); transition: box-shadow 0.2s; }
+.seg.is-live { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55); }
 
 .tl-head {
   position: absolute;

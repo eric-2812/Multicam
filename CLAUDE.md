@@ -34,7 +34,9 @@ Changes that don't touch the app (docs, CI only) don't need a release.
   hand. https://eric-2812.github.io/cortiva/ is the presentation page (`index.html`,
   `src/landing/`: built on the design-taste-frontend kit copied into `public/kit/` (layout, hover,
   hero entrance, the pinned-chapters moment), plus Motion, anime.js and NumberFlow animations; no
-  photographs — the owner asked for none; check it with the skill's `gate.mjs` on `dist/index.html`); the app is at `/cortiva/app/` (`app/index.html`), which phones join through. A `?join=`
+  photographs — the owner asked for none; check it with the skill's `gate.mjs` on `dist/index.html`; the build minifies the kit's copies in
+  `dist/kit` and joins its stylesheets, but leaves `motion/motion.js` and `motion.css` as shipped — the gate
+  recognises them by their source); the app is at `/cortiva/app/` (`app/index.html`), which phones join through. A `?join=`
   link to the root is forwarded to the app. The desktop app loads `cortiva://app/app/index.html`.
   The repository was renamed from Multicam to cortiva.
 - Licence: GPL-3.0-or-later (`LICENSE`). Keep the README's "Privacy" section true. The owner asked to

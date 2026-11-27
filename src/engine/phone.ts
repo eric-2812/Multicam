@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
-import Peer, { type DataConnection, type MediaConnection, type PeerOptions } from 'peerjs'
+import type Peer from 'peerjs'
+import type { DataConnection, MediaConnection, PeerOptions } from 'peerjs'
 import { addChannel, addSource, store, toast, updateSource } from '../store'
 import type { HwCaps, RawCap } from '../types'
 import { audio } from './audio'
@@ -49,6 +50,10 @@ interface PhoneLink {
 }
 
 let peer: Peer | null = null
+
+// The phone link library is only downloaded when a phone link is opened, not with the app.
+let PeerLib: typeof Peer | null = null
+export const loadPeer = () => (PeerLib ? Promise.resolve() : import('peerjs').then((m) => void (PeerLib = m.default)))
 let roomId: string | null = null
 const phones = new Map<string, PhoneLink>()
 const listeners = new Set<(s: RoomStatus) => void>()
@@ -215,10 +220,15 @@ export function joinUrl(room: string) {
 /** Open (once) the control-room endpoint that phones dial into. */
 export function openRoom() {
   if (peer && status.state !== 'error') return
+  if (!PeerLib) {
+    setStatus({ state: 'opening' })
+    loadPeer().then(openRoom, () => setStatus({ state: 'error', error: 'the phone link could not be loaded' }))
+    return
+  }
   peer?.destroy()
   roomId = newRoomId()
   setStatus({ state: 'opening' })
-  const p = new Peer(roomId, peerOptions())
+  const p = new PeerLib(roomId, peerOptions())
   peer = p
   p.on('open', (id) => setStatus({ state: 'ready', room: id }))
   p.on('error', (e) => {
@@ -527,7 +537,8 @@ export function joinRoom(
     rec(m: Extract<HostMsg, { type: 'rec' }>): void
   },
 ): Sender {
-  const p = new Peer(peerOptions())
+  if (!PeerLib) throw new Error('Call loadPeer() before joining')
+  const p = new PeerLib(peerOptions())
   let call: MediaConnection | null = null
   let conn: DataConnection | null = null
   let current = stream

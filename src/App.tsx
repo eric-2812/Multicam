@@ -1,10 +1,12 @@
 import { Icon } from './components/Icon'
-import { PhoneSender } from './components/PhoneSender'
-import { Shell } from './components/Shell'
 import { audio } from './engine/audio'
-import { useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { describe, loadSaved, restoreDevices } from './engine/persist'
 import { store, useStore, type AddTab } from './store'
+
+// The control room and the phone page load on demand, so the first screen appears sooner.
+const Shell = lazy(() => import('./components/Shell').then((m) => ({ default: m.Shell })))
+const PhoneSender = lazy(() => import('./components/PhoneSender').then((m) => ({ default: m.PhoneSender })))
 
 /** Where each kind of camera gets connected. */
 const SOURCES: { tab: AddTab; icon: string; title: string; how: string }[] = [
@@ -32,6 +34,11 @@ function Welcome() {
   const [saved] = useState(loadSaved)
   const [restoring, setRestoring] = useState(false)
   const hasDevices = !!saved && saved.cams.length + saved.mics.length > 0
+  // Fetch the control room while the person reads this screen, so it opens at once.
+  useEffect(() => {
+    const t = setTimeout(() => void import('./components/Shell'), 1200)
+    return () => clearTimeout(t)
+  }, [])
   const restore = async () => {
     if (!saved) return
     setRestoring(true)
@@ -110,6 +117,7 @@ function Welcome() {
 export function App() {
   const started = useStore((s) => s.started)
   const join = new URLSearchParams(location.search).get('join')
-  if (join) return <PhoneSender room={join} />
-  return started ? <Shell /> : <Welcome />
+  return (
+    <Suspense fallback={<div className="app-loading" aria-busy="true" />}>{join ? <PhoneSender room={join} /> : started ? <Shell /> : <Welcome />}</Suspense>
+  )
 }

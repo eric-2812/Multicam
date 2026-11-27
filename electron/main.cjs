@@ -62,7 +62,13 @@ function createWindow() {
     title: 'Cortiva',
     autoHideMenuBar: true,
     icon: path.join(__dirname, 'icon.png'),
+    // Shown once the first screen is painted, instead of an empty window first.
+    show: false,
     webPreferences: {
+      // Keep drawing and timing at full speed when minimised or behind other windows: a recording
+      // must not slow down or freeze because the window isn't in front.
+      backgroundThrottling: false,
+      spellcheck: false,
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
@@ -109,6 +115,8 @@ function createWindow() {
     return { action: 'deny' }
   })
 
+  win.once('ready-to-show', () => win.show())
+  setTimeout(() => !win.isDestroyed() && !win.isVisible() && win.show(), 4000) // never stay hidden
   win.loadURL('cortiva://app/app/index.html')
   return win
 }
